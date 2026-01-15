@@ -1,0 +1,15 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="boltGradC" x1="44" y1="16" x2="84" y2="116" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#0F172A"/>
+            <stop offset="0.55" stop-color="#334155"/>
+            <stop offset="1" stop-color="#0F172A"/>
+        </linearGradient>
+    </defs>
+
+    <rect x="12" y="12" width="104" height="104" rx="28" fill="#FFFFFF"/>
+    <path
+            d="M74 20 46 70h22l-8 38 36-56H72l2-32Z"
+            fill="url(#boltGradC)"
+    />
+</svg>
