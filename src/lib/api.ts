@@ -1,3 +1,5 @@
+import type {Workout} from "../types/workout.ts";
+
 export class ApiError extends Error {
   status: number;
 
@@ -47,5 +49,14 @@ export const api = {
   me: () =>
     request<{ authenticated: boolean; username?: string }>("/api/me", {
       method: "GET",
+    }),
+
+  workoutsList: (limit = 30) =>
+    request<{ workouts: Workout[] }>(`/api/workouts?limit=${limit}`, {method: "GET"}),
+
+  workoutsCreate: (workout: Workout) =>
+    request<{ ok: true; workout: Workout }>(`/api/workouts`, {
+      method: "POST",
+      body: JSON.stringify(workout),
     }),
 };
