@@ -1,6 +1,6 @@
 import type {VercelRequest, VercelResponse} from "@vercel/node";
 import {kv} from "@vercel/kv";
-import {getCookie, json} from "./_utils.ts";
+import {getCookie, json} from "./_utils.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") return json(res, 405, {error: "Method not allowed"});
