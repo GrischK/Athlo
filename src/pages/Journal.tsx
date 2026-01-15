@@ -1,22 +1,41 @@
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {api} from "../lib/api";
 import type {Workout} from "../types/workout";
+import {localInputToIso, nowLocalInputValue, uuid} from "../utils/workoutForm.ts";
 
-function uuid() {
-  return crypto.randomUUID();
-}
+
+type Sport = Workout["sport"];
 
 export default function Journal() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Form state
+  const [sport, setSport] = useState<Sport>("run");
+  const [startedAtLocal, setStartedAtLocal] = useState(nowLocalInputValue());
+  const [durationMin, setDurationMin] = useState<number>();
+  const [rpe, setRpe] = useState<number | "">("");
   const [notes, setNotes] = useState("");
 
-  console.log(workouts);
+  // Run / Laser-run
+  const [distanceKm, setDistanceKm] = useState<number>();
+  const [paceSecPerKm, setPaceSecPerKm] = useState<number | "">();
+
+  // Swim
+  const [distanceM, setDistanceM] = useState<number>();
+  const [poolLengthM, setPoolLengthM] = useState<25 | 50 | "">("");
+
+  // Strength (simple. 1 exercice, plusieurs sets)
+  const [exName, setExName] = useState("");
+  const [sets, setSets] = useState<Array<{ reps: number | ""; weightKg: number | ""; durationSec: number | "" }>>([
+    {reps: 12, weightKg: "", durationSec: ""},
+  ]);
+
   const load = async () => {
     setLoading(true);
     try {
       const res = await api.workoutsList(30);
-      setWorkouts(res.workouts);
+      setWorkouts(res);
     } finally {
       setLoading(false);
     }
@@ -26,47 +45,309 @@ export default function Journal() {
     void load();
   }, []);
 
-  const addQuickRun = async () => {
-    const startedAt = new Date().toISOString();
-    const w: Workout = {
+  const startedAtIso = useMemo(
+    () => localInputToIso(startedAtLocal),
+    [startedAtLocal]
+  );
+
+  const canSubmit = useMemo(() => {
+    if (!durationMin || durationMin <= 0) return false;
+
+    if (sport === "run" || sport === "laser_run") {
+      if (!distanceKm || distanceKm <= 0) return false;
+      if (paceSecPerKm !== "" && Number(paceSecPerKm) <= 0) return false;
+      return true;
+    }
+
+    if (sport === "swim") {
+      if (!distanceM || distanceM <= 0) return false;
+      if (poolLengthM !== "" && poolLengthM !== 25 && poolLengthM !== 50) return false;
+      return true;
+    }
+
+    if (sport === "strength") {
+      if (!exName.trim()) return false;
+      if (!sets.length) return false;
+      // au moins reps ou durationSec pour chaque set
+      for (const s of sets) {
+        const hasReps = s.reps !== "" && Number(s.reps) > 0;
+        const hasDur = s.durationSec !== "" && Number(s.durationSec) > 0;
+        if (!hasReps && !hasDur) return false;
+        if (s.weightKg !== "" && Number(s.weightKg) < 0) return false;
+      }
+      return true;
+    }
+
+    return false;
+  }, [durationMin, sport, distanceKm, paceSecPerKm, distanceM, poolLengthM, exName, sets]);
+
+  const submit = async () => {
+    if (!canSubmit) return;
+
+    const base: Omit<Workout, "details"> = {
       id: uuid(),
-      startedAt,
-      sport: "run",
-      durationMin: 45,
-      rpe: 6,
-      notes: notes || undefined,
-      details: {distanceKm: 8, paceSecPerKm: 330},
+      startedAt: startedAtIso,
+      sport,
+      durationMin: Number(durationMin),
+      ...(rpe === "" ? {} : {rpe: Number(rpe)}),
+      ...(notes.trim() ? {notes: notes.trim()} : {}),
     };
-    await api.workoutsCreate(w);
+
+    let workout: Workout;
+
+    if (sport === "run" || sport === "laser_run") {
+      workout = {
+        ...(base as any),
+        sport,
+        details: {
+          distanceKm: Number(distanceKm),
+          ...(paceSecPerKm === "" ? {} : {paceSecPerKm: Number(paceSecPerKm)}),
+        },
+      };
+    } else if (sport === "swim") {
+      workout = {
+        ...(base as any),
+        sport: "swim",
+        details: {
+          distanceM: Number(distanceM),
+          ...(poolLengthM === "" ? {} : {poolLengthM}),
+        },
+      };
+    } else {
+      workout = {
+        ...(base as any),
+        sport: "strength",
+        details: {
+          exercises: [
+            {
+              name: exName.trim(),
+              sets: sets.map((s) => ({
+                ...(s.reps === "" ? {} : {reps: Number(s.reps)}),
+                ...(s.weightKg === "" ? {} : {weightKg: Number(s.weightKg)}),
+                ...(s.durationSec === "" ? {} : {durationSec: Number(s.durationSec)}),
+              })),
+            },
+          ],
+        },
+      };
+    }
+
+    await api.workoutsCreate(workout);
+
+    // reset léger
     setNotes("");
+    setRpe("");
     await load();
   };
+
+  const addSet = () => setSets((prev) => [...prev, {reps: "", weightKg: "", durationSec: ""}]);
+  const removeSet = (idx: number) => setSets((prev) => prev.filter((_, i) => i !== idx));
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-8">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Journal</h1>
-            <p className="mt-1 text-sm text-slate-500">Ajoute et consulte tes séances</p>
-          </div>
-
-          <button
-            onClick={() => void addQuickRun()}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
-          >
-            Ajouter un run test
-          </button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-slate-900">Journal</h1>
+          <p className="mt-1 text-sm text-slate-500">Ajoute et consulte tes séances</p>
         </div>
 
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
-          <input
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition"
-            placeholder="Ex: bonnes sensations, vent, etc."
-          />
+        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 text-sm font-medium text-slate-900">Nouvelle séance</div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Sport</label>
+              <select
+                value={sport}
+                onChange={(e) => setSport(e.target.value as Sport)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              >
+                <option value="run">Run</option>
+                <option value="laser_run">Laser-run</option>
+                <option value="swim">Swim</option>
+                <option value="strength">Strength</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Date / heure</label>
+              <input
+                type="datetime-local"
+                value={startedAtLocal}
+                onChange={(e) => setStartedAtLocal(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Durée (min)</label>
+              <input
+                type="number"
+                min={1}
+                value={durationMin}
+                onChange={(e) => setDurationMin(Number(e.target.value))}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">RPE (1-10)</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={rpe}
+                onChange={(e) => setRpe(e.target.value === "" ? "" : Number(e.target.value))}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                placeholder="Optionnel"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              placeholder="Ex: bonnes sensations, vent, etc."
+            />
+          </div>
+
+          {(sport === "run" || sport === "laser_run") && (
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Distance (km)</label>
+                <input
+                  type="number"
+                  min={0.1}
+                  step={0.1}
+                  value={distanceKm}
+                  onChange={(e) => setDistanceKm(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Allure (sec/km)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={paceSecPerKm}
+                  onChange={(e) => setPaceSecPerKm(e.target.value === "" ? "" : Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  placeholder="Optionnel"
+                />
+              </div>
+            </div>
+          )}
+
+          {sport === "swim" && (
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Distance (m)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={distanceM}
+                  onChange={(e) => setDistanceM(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Bassin</label>
+                <select
+                  value={poolLengthM}
+                  onChange={(e) => setPoolLengthM(e.target.value === "" ? "" : (Number(e.target.value) as 25 | 50))}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                >
+                  <option value="">Optionnel</option>
+                  <option value="25">25 m</option>
+                  <option value="50">50 m</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {sport === "strength" && (
+            <div className="mt-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Exercice</label>
+                <input
+                  placeholder={"Ex: pompes"}
+                  value={exName}
+                  onChange={(e) => setExName(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+
+              <div className="text-sm font-medium text-slate-900 mb-2">Sets</div>
+              <div className="space-y-3">
+                {sets.map((s, idx) => (
+                  <div key={idx} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                    <input
+                      type="number"
+                      min={1}
+                      value={s.reps}
+                      onChange={(e) => {
+                        const v = e.target.value === "" ? "" : Number(e.target.value);
+                        setSets((prev) => prev.map((x, i) => (i === idx ? {...x, reps: v} : x)));
+                      }}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="Reps"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={s.weightKg}
+                      onChange={(e) => {
+                        const v = e.target.value === "" ? "" : Number(e.target.value);
+                        setSets((prev) => prev.map((x, i) => (i === idx ? {...x, weightKg: v} : x)));
+                      }}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="Kg (opt.)"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      value={s.durationSec}
+                      onChange={(e) => {
+                        const v = e.target.value === "" ? "" : Number(e.target.value);
+                        setSets((prev) => prev.map((x, i) => (i === idx ? {...x, durationSec: v} : x)));
+                      }}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="Sec (opt.)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeSet(idx)}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={addSet}
+                className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              >
+                Ajouter un set
+              </button>
+            </div>
+          )}
+
+          <div className="mt-6 flex items-center justify-end gap-3">
+            <button
+              onClick={() => void submit()}
+              disabled={!canSubmit}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Enregistrer
+            </button>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -100,3 +381,4 @@ export default function Journal() {
     </div>
   );
 }
+

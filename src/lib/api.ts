@@ -51,8 +51,10 @@ export const api = {
       method: "GET",
     }),
 
-  workoutsList: (limit = 30) =>
-    request<{ workouts: Workout[] }>(`/api/workouts?limit=${limit}`, {method: "GET"}),
+  workoutsList: async (limit = 30): Promise<Workout[]> => {
+    const r = await request<{ workouts: Workout[] }>(`/api/workouts?limit=${limit}`, { method: "GET" });
+    return r.workouts;
+  },
 
   workoutsCreate: (workout: Workout) =>
     request<{ ok: true; workout: Workout }>(`/api/workouts`, {
