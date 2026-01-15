@@ -11,6 +11,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const {APP_USERNAME, APP_PASSWORD_HASH} = process.env;
   console.log("APP_USERNAME:", APP_USERNAME);
   console.log("HASH_PREFIX:", APP_PASSWORD_HASH?.slice(0, 7), "LEN:", APP_PASSWORD_HASH?.length);
+  console.log("VERCEL_ENV:", process.env.VERCEL_ENV);
+  console.log("VERCEL_URL:", process.env.VERCEL_URL);
+  console.log("PROJECT_ID:", process.env.VERCEL_PROJECT_ID);
+  console.log("ORG_ID:", process.env.VERCEL_ORG_ID);
+  console.log("RUNTIME:", process.env.NOW_REGION, process.env.VERCEL_REGION);
 
   if (!APP_USERNAME || !APP_PASSWORD_HASH) {
     return json(res, 500, {error: "Server not configured"});
