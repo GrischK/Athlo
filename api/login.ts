@@ -43,5 +43,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   await kv.set(key, {username}, {ex: 60 * 60 * 24 * 7});
 
   setSessionCookie(res, token);
-  return json(res, 200, {ok: true});
+  return json(res, 200, {ok: true, username});
 }

@@ -34,7 +34,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   login: (username: string, password: string) =>
-    request<{ ok: true }>("/api/login", {
+    request<{ ok: true; username: string }>("/api/login", {
       method: "POST",
       body: JSON.stringify({username, password}),
     }),

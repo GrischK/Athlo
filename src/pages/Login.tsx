@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import {useAuth} from "../auth/AuthProvider";
 
@@ -14,6 +14,12 @@ export default function Login() {
 
   const from = location.state?.from || "/";
 
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      nav("/", {replace: true});
+    }
+  }, [state.status, nav]);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -27,10 +33,6 @@ export default function Login() {
       setSubmitting(false);
     }
   };
-
-  if (state.status === "authenticated") {
-    nav("/", {replace: true});
-  }
 
   return (
     <div style={{minHeight: "100vh", display: "grid", placeItems: "center", padding: 24}}>

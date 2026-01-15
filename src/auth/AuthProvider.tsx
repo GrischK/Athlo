@@ -32,16 +32,13 @@ export function AuthProvider({children}: { children: React.ReactNode }) {
   };
 
   const login = async (username: string, password: string) => {
-    await api.login(username, password);
-    await refresh();
+    const res = await api.login(username, password);
+    setState({ status: "authenticated", username: res.username });
   };
 
   const logout = async () => {
-    try {
-      await api.logout();
-    } finally {
-      await refresh();
-    }
+    await api.logout();
+    setState({status: "anonymous"});
   };
 
   useEffect(() => {
