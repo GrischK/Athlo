@@ -46,6 +46,19 @@ export default function Navbar() {
           >
             Journal
           </NavLink>
+
+          <NavLink
+            to="/plan"
+            className={({isActive}) =>
+              `text-sm font-medium ${
+                isActive
+                  ? "text-slate-900"
+                  : "text-slate-500 hover:text-slate-900"
+              }`
+            }
+          >
+            Plan
+          </NavLink>
         </nav>
 
         {/* Right */}

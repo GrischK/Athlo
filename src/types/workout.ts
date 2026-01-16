@@ -13,9 +13,12 @@ export type StrengthSetDraft = {
   durationSec?: number;
 };
 
-export type StrengthExerciseDraft = {
-  name: string;
-  sets: StrengthSetDraft[];
+export type StrengthPlan = {
+  id: string;
+  plannedFor: string; // ISO datetime
+  durationMin: number;
+  notes?: string;
+  exercises: StrengthExercise[];
 };
 
 export type WorkoutBase = {

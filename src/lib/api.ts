@@ -1,4 +1,4 @@
-import type {Workout, WorkoutRecord} from "../types/workout.ts";
+import type {StrengthPlan, Workout} from "../types/workout.ts";
 
 export class ApiError extends Error {
   status: number;
@@ -51,9 +51,9 @@ export const api = {
       method: "GET",
     }),
 
-  workoutsList: async (limit = 30): Promise<WorkoutRecord[]> => {
-    const r = await request<{ records: WorkoutRecord[] }>(`/api/workouts?limit=${limit}`, { method: "GET" });
-    return r.records;
+  workoutsList: async (limit = 30): Promise<Workout[]> => {
+    const r = await request<{ workouts: Workout[] }>(`/api/workouts?limit=${limit}`, {method: "GET"});
+    return r.workouts;
   },
 
   workoutsCreate: (workout: Workout) =>
@@ -61,4 +61,24 @@ export const api = {
       method: "POST",
       body: JSON.stringify(workout),
     }),
+
+  plansList: async (limit = 30): Promise<StrengthPlan[]> => {
+    const r = await request<{ plans: StrengthPlan[] }>(`/api/plans?limit=${limit}`, {method: "GET"});
+    return r.plans;
+  },
+
+  plansCreate: async (plan: StrengthPlan): Promise<StrengthPlan> => {
+    const r = await request<{ plan: StrengthPlan }>(`/api/plans`, {
+      method: "POST",
+      body: JSON.stringify(plan),
+    });
+    return r.plan;
+  },
+
+  plansAction: async (id: string, action: "complete" | "cancel" | "delete"): Promise<{ workout?: Workout }> => {
+    return await request<{ ok: true; workout?: Workout }>(`/api/plans_action`, {
+      method: "POST",
+      body: JSON.stringify({id, action}),
+    });
+  },
 };

@@ -2,7 +2,6 @@ import type {VercelRequest, VercelResponse} from "@vercel/node";
 import {kv} from "@vercel/kv";
 import {json} from "./_utils.js";
 import {requireAuth} from "./_auth.js";
-import {WorkoutRecord} from "../src/types/workout";
 
 type Sport = "swim" | "run" | "laser_run" | "strength";
 
@@ -30,26 +29,6 @@ type Workouts =
 type ValidateOk = { ok: true; workout: Workouts; ts: number };
 type ValidateErr = { ok: false; error: string };
 type ValidateResult = ValidateOk | ValidateErr;
-
-function parseMaybeJson(v: unknown): any | null {
-  if (v == null) return null;
-  if (typeof v === "object") return v;
-  if (typeof v === "string") {
-    try { return JSON.parse(v); } catch { return null; }
-  }
-  return null;
-}
-
-function isWorkoutRecord(x: any): x is WorkoutRecord {
-  return (
-    x &&
-    typeof x === "object" &&
-    (x.status === "planned" || x.status === "done" || x.status === "canceled") &&
-    x.workout &&
-    typeof x.workout === "object" &&
-    typeof x.workout.id === "string"
-  );
-}
 
 function isIsoDateTime(s: unknown): s is string {
   return typeof s === "string" && !Number.isNaN(Date.parse(s));
@@ -183,11 +162,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const values = await kv.zrange<unknown[]>(key, 0, limit - 1, { rev: true });
 
-    const records = values
-      .map(parseMaybeJson)
-      .filter((x): x is WorkoutRecord => isWorkoutRecord(x));
+    const workouts = values
+      .map((v) => {
+        if (v == null) return null;
 
-    return json(res, 200, { records });
+        // si KV a déjà désérialisé
+        if (typeof v === "object") return v;
+
+        // sinon on parse la string JSON
+        if (typeof v === "string") {
+          try {
+            return JSON.parse(v);
+          } catch {
+            return null;
+          }
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+
+    return json(res, 200, { workouts });
   }
 
 
@@ -205,8 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return json(res, 400, {error: v.error});
     }
 
-    const record: WorkoutRecord = { status: "done", workout: v.workout };
-    await kv.zadd(key, { score: v.ts, member: JSON.stringify(record) });
+    await kv.zadd(key, {score: v.ts, member: JSON.stringify(v.workout)});
 
     return json(res, 201, {ok: true, workout: v.workout});
   }

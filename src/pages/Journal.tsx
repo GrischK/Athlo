@@ -1,16 +1,16 @@
 import {useEffect, useMemo, useState} from "react";
 import {api} from "../lib/api";
-import type {Workout, WorkoutRecord} from "../types/workout";
+import type {Workout} from "../types/workout";
 import {localInputToIso, nowLocalInputValue, type SetGroup, uuid} from "../utils/workoutForm.ts";
 
 
 type Sport = Workout["sport"];
 const INITIAL_GROUPS: SetGroup[] = [
-  {count: "", reps: "", weightKg: "", durationSec: ""},
+  { count: "", reps: "", weightKg: "", durationSec: "" },
 ];
 
 export default function Journal() {
-  const [records, setRecords] = useState<WorkoutRecord[]>([]);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form state
@@ -36,7 +36,7 @@ export default function Journal() {
     setLoading(true);
     try {
       const res = await api.workoutsList(30);
-      setRecords(res);
+      setWorkouts(res);
     } finally {
       setLoading(false);
     }
@@ -402,39 +402,26 @@ export default function Journal() {
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
             <div className="text-sm font-medium text-slate-900">Historique</div>
-            <div className="text-xs text-slate-500">{loading ? "Chargement." : `${records.length} séance(s)`}</div>
+            <div className="text-xs text-slate-500">{loading ? "Chargement." : `${workouts.length} séance(s)`}</div>
           </div>
 
           <div className="divide-y divide-slate-100">
-            {records.map((r) => {
-              const w = r.workout;
-              return (
-                <div key={w.id} className="px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium text-slate-900">{w.sport}</div>
-                      {r.status !== "done" ?
-                        (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                            {r.status === "planned" ? "Planifié" : "Annulé"}
-                          </span>
-                        ) : null
-                      }
-                    </div>
-                    <div className="text-sm text-slate-500">{new Date(w.startedAt).toLocaleString()}</div>
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    {w.durationMin} min
-                    {"distanceKm" in w.details ? ` · ${w.details.distanceKm} km` : null}
-                    {"distanceM" in w.details ? ` · ${w.details.distanceM} m` : null}
-                  </div>
-
-                  {w.notes ? <div className="mt-1 text-sm text-slate-500">{w.notes}</div> : null}
+            {workouts.map((w) => (
+              <div key={w.id} className="px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="font-medium text-slate-900">{w.sport}</div>
+                  <div className="text-sm text-slate-500">{new Date(w.startedAt).toLocaleString()}</div>
                 </div>
-              );
-            })}
+                <div className="mt-1 text-sm text-slate-700">
+                  {w.durationMin} min
+                  {"distanceKm" in w.details ? ` · ${w.details.distanceKm} km` : null}
+                  {"distanceM" in w.details ? ` · ${w.details.distanceM} m` : null}
+                </div>
+                {w.notes ? <div className="mt-1 text-sm text-slate-500">{w.notes}</div> : null}
+              </div>
+            ))}
 
-            {!loading && records.length === 0 ? (
+            {!loading && workouts.length === 0 ? (
               <div className="px-6 py-10 text-sm text-slate-500">Aucune séance pour le moment.</div>
             ) : null}
           </div>
