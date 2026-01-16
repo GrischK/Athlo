@@ -1,3 +1,5 @@
+import type {SetGroup} from "@/utils/workoutForm.ts";
+
 export type Sport = "swim" | "run" | "laser_run" | "strength";
 export type WorkoutStatus = "planned" | "done" | "canceled";
 
@@ -11,6 +13,12 @@ export type StrengthSetDraft = {
   reps?: number;
   weightKg?: number;
   durationSec?: number;
+};
+
+export type ExerciseDraft = {
+  id: string;
+  name: string;
+  groups: SetGroup[];
 };
 
 export type StrengthPlan = {
