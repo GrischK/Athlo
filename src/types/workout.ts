@@ -1,4 +1,22 @@
 export type Sport = "swim" | "run" | "laser_run" | "strength";
+export type WorkoutStatus = "planned" | "done" | "canceled";
+
+export type WorkoutRecord = {
+  status: WorkoutStatus;
+  workout: Workout;
+};
+
+export type StrengthSetDraft = {
+  count: number;
+  reps?: number;
+  weightKg?: number;
+  durationSec?: number;
+};
+
+export type StrengthExerciseDraft = {
+  name: string;
+  sets: StrengthSetDraft[];
+};
 
 export type WorkoutBase = {
   id: string;

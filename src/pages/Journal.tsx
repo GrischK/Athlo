@@ -1,10 +1,13 @@
 import {useEffect, useMemo, useState} from "react";
 import {api} from "../lib/api";
 import type {Workout} from "../types/workout";
-import {localInputToIso, nowLocalInputValue, uuid} from "../utils/workoutForm.ts";
+import {localInputToIso, nowLocalInputValue, type SetGroup, uuid} from "../utils/workoutForm.ts";
 
 
 type Sport = Workout["sport"];
+const INITIAL_GROUPS: SetGroup[] = [
+  { count: "", reps: "", weightKg: "", durationSec: "" },
+];
 
 export default function Journal() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -27,9 +30,7 @@ export default function Journal() {
 
   // Strength (simple. 1 exercice, plusieurs sets)
   const [exName, setExName] = useState("");
-  const [sets, setSets] = useState<Array<{ reps: number | ""; weightKg: number | ""; durationSec: number | "" }>>([
-    {reps: 12, weightKg: "", durationSec: ""},
-  ]);
+  const [groups, setGroups] = useState<SetGroup[]>(INITIAL_GROUPS);
 
   const load = async () => {
     setLoading(true);
@@ -66,20 +67,39 @@ export default function Journal() {
     }
 
     if (sport === "strength") {
-      if (!exName.trim()) return false;
-      if (!sets.length) return false;
-      // au moins reps ou durationSec pour chaque set
-      for (const s of sets) {
-        const hasReps = s.reps !== "" && Number(s.reps) > 0;
-        const hasDur = s.durationSec !== "" && Number(s.durationSec) > 0;
+      if (!groups.length) return false;
+
+      for (const g of groups) {
+        if (!g.count || g.count < 1) return false;
+
+        const hasReps = g.reps !== "" && Number(g.reps) > 0;
+        const hasDur = g.durationSec !== "" && Number(g.durationSec) > 0;
         if (!hasReps && !hasDur) return false;
-        if (s.weightKg !== "" && Number(s.weightKg) < 0) return false;
+
+        if (g.weightKg !== "" && Number(g.weightKg) < 0) return false;
       }
       return true;
     }
 
     return false;
-  }, [durationMin, sport, distanceKm, paceSecPerKm, distanceM, poolLengthM, exName, sets]);
+  }, [durationMin, sport, distanceKm, paceSecPerKm, distanceM, poolLengthM, exName, groups]);
+
+  const resetForm = () => {
+    setSport("run");
+    setStartedAtLocal(nowLocalInputValue());
+    setDurationMin(undefined);
+    setRpe("");
+    setNotes("");
+
+    setDistanceKm(undefined);
+    setPaceSecPerKm("");
+
+    setDistanceM(undefined);
+    setPoolLengthM("");
+
+    setExName("");
+    setGroups(INITIAL_GROUPS);
+  };
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -114,6 +134,16 @@ export default function Journal() {
         },
       };
     } else {
+      const expandedSets = groups.flatMap((g) => {
+        const n = Math.max(1, Math.floor(Number(g.count) || 1));
+        const set = {
+          ...(g.reps === "" ? {} : {reps: Number(g.reps)}),
+          ...(g.weightKg === "" ? {} : {weightKg: Number(g.weightKg)}),
+          ...(g.durationSec === "" ? {} : {durationSec: Number(g.durationSec)}),
+        };
+        return Array.from({length: n}, () => set);
+      });
+
       workout = {
         ...(base as any),
         sport: "strength",
@@ -121,11 +151,7 @@ export default function Journal() {
           exercises: [
             {
               name: exName.trim(),
-              sets: sets.map((s) => ({
-                ...(s.reps === "" ? {} : {reps: Number(s.reps)}),
-                ...(s.weightKg === "" ? {} : {weightKg: Number(s.weightKg)}),
-                ...(s.durationSec === "" ? {} : {durationSec: Number(s.durationSec)}),
-              })),
+              sets: expandedSets,
             },
           ],
         },
@@ -134,14 +160,15 @@ export default function Journal() {
 
     await api.workoutsCreate(workout);
 
-    // reset léger
-    setNotes("");
-    setRpe("");
+    resetForm();
     await load();
   };
 
-  const addSet = () => setSets((prev) => [...prev, {reps: "", weightKg: "", durationSec: ""}]);
-  const removeSet = (idx: number) => setSets((prev) => prev.filter((_, i) => i !== idx));
+  const addGroup = () =>
+    setGroups((prev) => [...prev, {count: 3, reps: "", weightKg: "", durationSec: ""}]);
+
+  const removeGroup = (idx: number) =>
+    setGroups((prev) => prev.filter((_, i) => i !== idx));
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-8">
@@ -280,47 +307,68 @@ export default function Journal() {
                 />
               </div>
 
-              <div className="text-sm font-medium text-slate-900 mb-2">Sets</div>
+              <div className="text-sm font-medium text-slate-900 mb-2">Groupes</div>
               <div className="space-y-3">
-                {sets.map((s, idx) => (
-                  <div key={idx} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                {groups.map((g, idx) => (
+                  <div key={idx} className="grid grid-cols-1 gap-3 sm:grid-cols-5">
                     <input
                       type="number"
                       min={1}
-                      value={s.reps}
+                      value={g.count}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setGroups((prev) =>
+                          prev.map((x, i) =>
+                            i === idx
+                              ? {...x, count: value === "" ? "" : Number(value)}
+                              : x
+                          )
+                        );
+                      }}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="Séries"
+                    />
+
+                    <input
+                      type="number"
+                      min={1}
+                      value={g.reps}
                       onChange={(e) => {
                         const v = e.target.value === "" ? "" : Number(e.target.value);
-                        setSets((prev) => prev.map((x, i) => (i === idx ? {...x, reps: v} : x)));
+                        setGroups((prev) => prev.map((x, i) => (i === idx ? {...x, reps: v} : x)));
                       }}
                       className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                       placeholder="Reps"
                     />
+
                     <input
                       type="number"
                       min={0}
                       step={0.5}
-                      value={s.weightKg}
+                      value={g.weightKg}
                       onChange={(e) => {
                         const v = e.target.value === "" ? "" : Number(e.target.value);
-                        setSets((prev) => prev.map((x, i) => (i === idx ? {...x, weightKg: v} : x)));
+                        setGroups((prev) => prev.map((x, i) => (i === idx ? {...x, weightKg: v} : x)));
                       }}
                       className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                       placeholder="Kg (opt.)"
                     />
+
                     <input
                       type="number"
                       min={1}
-                      value={s.durationSec}
+                      value={g.durationSec}
                       onChange={(e) => {
                         const v = e.target.value === "" ? "" : Number(e.target.value);
-                        setSets((prev) => prev.map((x, i) => (i === idx ? {...x, durationSec: v} : x)));
+                        setGroups((prev) => prev.map((x, i) => (i === idx ? {...x, durationSec: v} : x)));
                       }}
                       className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                       placeholder="Sec (opt.)"
                     />
+
                     <button
                       type="button"
-                      onClick={() => removeSet(idx)}
+                      onClick={() => removeGroup(idx)}
                       className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
                       Supprimer
@@ -331,11 +379,12 @@ export default function Journal() {
 
               <button
                 type="button"
-                onClick={addSet}
+                onClick={addGroup}
                 className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
               >
-                Ajouter un set
+                Ajouter un groupe
               </button>
+
             </div>
           )}
 

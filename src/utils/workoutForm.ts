@@ -15,3 +15,10 @@ export function nowLocalInputValue(date = new Date()) {
 export function localInputToIso(local: string) {
   return new Date(local).toISOString();
 }
+
+export type SetGroup = {
+  count: number | "";
+  reps: number | "";
+  weightKg: number | "";
+  durationSec: number | "";
+};
