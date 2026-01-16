@@ -2,6 +2,7 @@ import React, {useEffect, useState} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import {useAuth} from "../auth/AuthProvider";
 import logo from "../assets/logo.svg";
+import {TextGenerateEffect} from "@/components/ui/text-generate-effect.tsx";
 
 export default function Login() {
   const {login, state} = useAuth();
@@ -36,7 +37,12 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="min-h-screen flex flex-col gap-16 items-center justify-center bg-slate-50 px-4">
+      <TextGenerateEffect
+        words="Lève toi de ton canapé et bouge !"
+        blurStart={18}
+        staggerDelay={0.10}
+      />
       <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-sm p-8">
         <div className="mb-8 text-center flex flex-col justify-center items-center">
           <img
