@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import type {ExerciseDraft, StrengthPlan} from "../types/workout";
 import { localInputToIso, nowLocalInputValue, type SetGroup, uuid } from "../utils/workoutForm";
-import {compressSetsToGroups, isoToLocalInputValue, sortPlans} from "@/utils/planStrength.ts";
+import {compressSetsToGroups, formatSetSummary, isoToLocalInputValue, sortPlans} from "@/utils/planStrengthForm.ts";
 
 
 const newExerciseDraft = (): ExerciseDraft => ({
@@ -427,9 +427,11 @@ export default function PlanStrength() {
                 {p.exercises?.length ? (
                   <div className="mt-3 text-sm text-slate-600">
                     {p.exercises.map((ex, i) => (
-                      <div key={`${p.id}-${i}`} className="mt-1">
-                        <span className="font-medium text-slate-700">{ex.name}</span>
-                        <span className="text-slate-500"> · {ex.sets?.length || 0} set(s)</span>
+                      <div key={`${p.id}-${i}`} className="mt-2">
+                        <div className="font-medium text-slate-700">{ex.name}</div>
+                        <div className="mt-1 text-sm text-slate-500">
+                          {formatSetSummary(ex.sets).join(" · ")}
+                        </div>
                       </div>
                     ))}
                   </div>

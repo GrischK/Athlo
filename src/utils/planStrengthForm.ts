@@ -1,5 +1,5 @@
 import {nowLocalInputValue, type SetGroup} from "@/utils/workoutForm.ts";
-import type {StrengthPlan} from "@/types/workout.ts";
+import type {StrengthPlan, StrengthSet} from "@/types/workout.ts";
 
 export function compressSetsToGroups(sets: Array<{
   reps?: number;
@@ -72,3 +72,30 @@ export function sortPlans(plans: StrengthPlan[]): StrengthPlan[] {
     return tb - ta;
   });
 }
+
+export function formatSetSummary(sets: StrengthSet[]): string[] {
+  const groups = compressSetsToGroups(sets);
+
+  return groups.map((g) => {
+    const count = g.count === "" ? 0 : Number(g.count);
+    const reps = g.reps === "" ? null : Number(g.reps);
+    const kg = g.weightKg === "" ? null : Number(g.weightKg);
+    const sec = g.durationSec === "" ? null : Number(g.durationSec);
+
+    const parts: string[] = [];
+
+    if (count > 0 && reps && reps > 0) {
+      parts.push(`${count}×${reps} reps`);
+    } else if (count > 0 && sec && sec > 0) {
+      parts.push(`${count}×${sec}s`);
+    } else {
+      if (reps && reps > 0) parts.push(`${reps} reps`);
+      else if (sec && sec > 0) parts.push(`${sec}s`);
+    }
+
+    if (kg !== null && kg > 0) parts.push(`${kg} kg`);
+
+    return parts.join(" / ");
+  });
+}
+
