@@ -81,4 +81,12 @@ export const api = {
       body: JSON.stringify({id, action}),
     });
   },
+
+  plansUpdate: async (plan: StrengthPlan): Promise<StrengthPlan> => {
+    const r = await request<{ plan: StrengthPlan }>(`/api/plans`, {
+      method: "PUT",
+      body: JSON.stringify(plan),
+    });
+    return r.plan;
+  },
 };

@@ -45,13 +45,15 @@ function validatePlan(body: any): { ok: true; plan: StrengthPlan; ts: number } |
 
   const id = body.id;
   const plannedFor = body.plannedFor;
-  const durationMin = asNumber(body.durationMin);
+  const durationMin = body.durationMin === undefined ? undefined : asNumber(body.durationMin);
   const notes = body.notes;
   const exercises = body.exercises;
 
   if (typeof id !== "string" || id.length < 8) return {ok: false, error: "Invalid id"};
   if (!isIsoDateTime(plannedFor)) return {ok: false, error: "Invalid plannedFor"};
-  if (durationMin === null || durationMin <= 0) return {ok: false, error: "Invalid durationMin"};
+  if (durationMin !== undefined && (durationMin === null || durationMin <= 0)) {
+    return {ok: false, error: "Invalid durationMin"};
+  }
   if (notes !== undefined && typeof notes !== "string") return {ok: false, error: "Invalid notes"};
 
   if (!Array.isArray(exercises) || exercises.length === 0) {
@@ -86,7 +88,7 @@ function validatePlan(body: any): { ok: true; plan: StrengthPlan; ts: number } |
   const plan: StrengthPlan = {
     id,
     plannedFor,
-    durationMin,
+    ...(durationMin !== undefined ? { durationMin } : {}),
     ...(notes ? {notes: notes.trim()} : {}),
     exercises: exercises.map((ex: any) => ({
       name: String(ex.name).trim(),
@@ -127,5 +129,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return json(res, 201, {ok: true, plan: v.plan});
   }
 
+  if (req.method === "PUT") {
+    const body = parseBody(req);
+    if (body === null) return json(res, 400, {error: "Invalid JSON"});
+
+    const v = validatePlan(body);
+    if (v.ok === false) return json(res, 400, {error: v.error});
+
+    // find old member by id (scan last 200)
+    const values = await kv.zrange<unknown[]>(key, 0, 199, {rev: true});
+    for (const raw of values) {
+      const existing = parseMaybeJson(raw) as StrengthPlan | null;
+      if (!existing || typeof existing !== "object") continue;
+      if (existing.id !== v.plan.id) continue;
+
+      await kv.zrem(key, JSON.stringify(existing));
+      await kv.zadd(key, {score: v.ts, member: JSON.stringify(v.plan)});
+
+      return json(res, 200, {ok: true, plan: v.plan});
+    }
+
+    return json(res, 404, {error: "Plan not found"});
+  }
+
   return json(res, 405, {error: "Method not allowed"});
 }
+

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { api } from "../lib/api";
+import {useEffect, useMemo, useState} from "react";
+import {api} from "../lib/api";
 import type {ExerciseDraft, Workout} from "../types/workout";
-import { localInputToIso, nowLocalInputValue, type SetGroup, uuid } from "../utils/workoutForm";
+import {localInputToIso, nowLocalInputValue, type SetGroup, uuid} from "../utils/workoutForm";
 
 type Sport = Workout["sport"];
 
@@ -9,7 +9,7 @@ type Sport = Workout["sport"];
 const newExerciseDraft = (): ExerciseDraft => ({
   id: uuid(),
   name: "",
-  groups: [{ count: "", reps: "", weightKg: "", durationSec: "" }],
+  groups: [{count: "", reps: "", weightKg: "", durationSec: ""}],
 });
 
 export default function Journal() {
@@ -55,33 +55,37 @@ export default function Journal() {
   const removeExercise = (exId: string) => setExercises((prev) => prev.filter((e) => e.id !== exId));
 
   const updateExerciseName = (exId: string, name: string) =>
-    setExercises((prev) => prev.map((e) => (e.id === exId ? { ...e, name } : e)));
+    setExercises((prev) => prev.map((e) => (e.id === exId ? {...e, name} : e)));
 
   const addGroup = (exId: string) =>
     setExercises((prev) =>
       prev.map((e) =>
         e.id === exId
-          ? { ...e, groups: [...e.groups, { count: "", reps: "", weightKg: "", durationSec: "" }] }
+          ? {...e, groups: [...e.groups, {count: "", reps: "", weightKg: "", durationSec: ""}]}
           : e
       )
     );
 
   const removeGroup = (exId: string, idx: number) =>
     setExercises((prev) =>
-      prev.map((e) => (e.id === exId ? { ...e, groups: e.groups.filter((_, i) => i !== idx) } : e))
+      prev.map((e) => (e.id === exId ? {...e, groups: e.groups.filter((_, i) => i !== idx)} : e))
     );
 
   const updateGroup = (exId: string, idx: number, patch: Partial<SetGroup>) =>
     setExercises((prev) =>
       prev.map((e) =>
         e.id === exId
-          ? { ...e, groups: e.groups.map((g, i) => (i === idx ? { ...g, ...patch } : g)) }
+          ? {...e, groups: e.groups.map((g, i) => (i === idx ? {...g, ...patch} : g))}
           : e
       )
     );
 
   const canSubmit = useMemo(() => {
-    if (!durationMin || durationMin <= 0) return false;
+    if (sport !== "strength") {
+      if (!durationMin || durationMin <= 0) return false;
+    } else {
+      if (durationMin !== undefined && durationMin <= 0) return false;
+    }
 
     if (sport === "run" || sport === "laser_run") {
       if (!distanceKm || distanceKm <= 0) return false;
@@ -144,8 +148,8 @@ export default function Journal() {
       startedAt: startedAtIso,
       sport,
       durationMin: Number(durationMin),
-      ...(rpe === "" ? {} : { rpe: Number(rpe) }),
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(rpe === "" ? {} : {rpe: Number(rpe)}),
+      ...(notes.trim() ? {notes: notes.trim()} : {}),
     };
 
     let workout: Workout;
@@ -156,7 +160,7 @@ export default function Journal() {
         sport,
         details: {
           distanceKm: Number(distanceKm),
-          ...(paceSecPerKm === "" ? {} : { paceSecPerKm: Number(paceSecPerKm) }),
+          ...(paceSecPerKm === "" ? {} : {paceSecPerKm: Number(paceSecPerKm)}),
         },
       };
     } else if (sport === "swim") {
@@ -165,7 +169,7 @@ export default function Journal() {
         sport: "swim",
         details: {
           distanceM: Number(distanceM),
-          ...(poolLengthM === "" ? {} : { poolLengthM }),
+          ...(poolLengthM === "" ? {} : {poolLengthM}),
         },
       };
     } else {
@@ -173,14 +177,14 @@ export default function Journal() {
         const sets = ex.groups.flatMap((g) => {
           const n = Math.max(1, Math.floor(Number(g.count) || 1));
           const set = {
-            ...(g.reps === "" ? {} : { reps: Number(g.reps) }),
-            ...(g.weightKg === "" ? {} : { weightKg: Number(g.weightKg) }),
-            ...(g.durationSec === "" ? {} : { durationSec: Number(g.durationSec) }),
+            ...(g.reps === "" ? {} : {reps: Number(g.reps)}),
+            ...(g.weightKg === "" ? {} : {weightKg: Number(g.weightKg)}),
+            ...(g.durationSec === "" ? {} : {durationSec: Number(g.durationSec)}),
           };
-          return Array.from({ length: n }, () => set);
+          return Array.from({length: n}, () => set);
         });
 
-        return { name: ex.name.trim(), sets };
+        return {name: ex.name.trim(), sets};
       });
 
       workout = {
@@ -374,7 +378,7 @@ export default function Journal() {
                             value={g.count}
                             onChange={(e) => {
                               const value = e.target.value;
-                              updateGroup(ex.id, idx, { count: value === "" ? "" : Number(value) });
+                              updateGroup(ex.id, idx, {count: value === "" ? "" : Number(value)});
                             }}
                             className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                             placeholder="Séries"
@@ -386,7 +390,7 @@ export default function Journal() {
                             value={g.reps}
                             onChange={(e) => {
                               const v = e.target.value === "" ? "" : Number(e.target.value);
-                              updateGroup(ex.id, idx, { reps: v });
+                              updateGroup(ex.id, idx, {reps: v});
                             }}
                             className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                             placeholder="Reps"
@@ -399,7 +403,7 @@ export default function Journal() {
                             value={g.weightKg}
                             onChange={(e) => {
                               const v = e.target.value === "" ? "" : Number(e.target.value);
-                              updateGroup(ex.id, idx, { weightKg: v });
+                              updateGroup(ex.id, idx, {weightKg: v});
                             }}
                             className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                             placeholder="Kg (opt.)"
@@ -411,7 +415,7 @@ export default function Journal() {
                             value={g.durationSec}
                             onChange={(e) => {
                               const v = e.target.value === "" ? "" : Number(e.target.value);
-                              updateGroup(ex.id, idx, { durationSec: v });
+                              updateGroup(ex.id, idx, {durationSec: v});
                             }}
                             className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                             placeholder="Sec (opt.)"

@@ -1,13 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
-import type { StrengthPlan } from "../types/workout";
+import type {ExerciseDraft, StrengthPlan} from "../types/workout";
 import { localInputToIso, nowLocalInputValue, type SetGroup, uuid } from "../utils/workoutForm";
+import {compressSetsToGroups, isoToLocalInputValue, sortPlans} from "@/utils/planStrength.ts";
 
-type ExerciseDraft = {
-  id: string;
-  name: string;
-  groups: SetGroup[];
-};
 
 const newExerciseDraft = (): ExerciseDraft => ({
   id: uuid(),
@@ -20,11 +16,13 @@ export default function PlanStrength() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string>("");
 
+  // Edition
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   // Form
   const [plannedForLocal, setPlannedForLocal] = useState(nowLocalInputValue());
-  const [durationMin, setDurationMin] = useState<number>();
+  const [durationMin, setDurationMin] = useState<number | "">("");
   const [notes, setNotes] = useState("");
-
   const [exercises, setExercises] = useState<ExerciseDraft[]>([newExerciseDraft()]);
 
   const plannedForIso = useMemo(() => localInputToIso(plannedForLocal), [plannedForLocal]);
@@ -34,7 +32,7 @@ export default function PlanStrength() {
     setErr("");
     try {
       const res = await api.plansList(50);
-      setPlans(res);
+      setPlans(sortPlans(res));
     } catch (e: any) {
       setErr(e?.message || "Erreur lors du chargement des plans");
     } finally {
@@ -48,8 +46,7 @@ export default function PlanStrength() {
 
   const addExercise = () => setExercises((prev) => [...prev, newExerciseDraft()]);
 
-  const removeExercise = (exId: string) =>
-    setExercises((prev) => prev.filter((e) => e.id !== exId));
+  const removeExercise = (exId: string) => setExercises((prev) => prev.filter((e) => e.id !== exId));
 
   const updateExerciseName = (exId: string, name: string) =>
     setExercises((prev) => prev.map((e) => (e.id === exId ? { ...e, name } : e)));
@@ -78,8 +75,8 @@ export default function PlanStrength() {
     );
 
   const canSubmit = useMemo(() => {
-    if (!durationMin || durationMin <= 0) return false;
-    if (!exercises.length) return false;
+    if (durationMin !== "" && Number(durationMin) <= 0) return false;
+      if (!exercises.length) return false;
 
     for (const ex of exercises) {
       if (!ex.name.trim()) return false;
@@ -95,21 +92,34 @@ export default function PlanStrength() {
         if (g.weightKg !== "" && Number(g.weightKg) < 0) return false;
       }
     }
+
     return true;
   }, [durationMin, exercises]);
 
   const resetForm = () => {
+    setEditingId(null);
     setPlannedForLocal(nowLocalInputValue());
-    setDurationMin(undefined);
+    setDurationMin("");
     setNotes("");
     setExercises([newExerciseDraft()]);
   };
 
-  const submit = async () => {
-    if (!canSubmit) return;
+  const loadPlanIntoForm = (p: StrengthPlan) => {
+    setEditingId(p.id);
+    setPlannedForLocal(isoToLocalInputValue(p.plannedFor));
+    setDurationMin(p.durationMin ?? "");
+    setNotes(p.notes ?? "");
+    setExercises(
+      p.exercises.map((ex) => ({
+        id: uuid(),
+        name: ex.name,
+        groups: compressSetsToGroups(ex.sets),
+      }))
+    );
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-    setErr("");
-
+  const buildPlanFromForm = (id: string): StrengthPlan => {
     const expandedExercises = exercises.map((ex) => {
       const sets = ex.groups.flatMap((g) => {
         const n = Math.max(1, Math.floor(Number(g.count) || 1));
@@ -124,20 +134,33 @@ export default function PlanStrength() {
       return { name: ex.name.trim(), sets };
     });
 
-    const plan: StrengthPlan = {
-      id: uuid(),
+    return {
+      id,
       plannedFor: plannedForIso,
-      durationMin: Number(durationMin),
+      ...(durationMin === "" ? {} : { durationMin: Number(durationMin) }),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
       exercises: expandedExercises,
     };
+  };
+
+  const submit = async () => {
+    if (!canSubmit) return;
+
+    setErr("");
 
     try {
-      await api.plansCreate(plan);
+      if (editingId) {
+        const plan = buildPlanFromForm(editingId);
+        await api.plansUpdate(plan);
+      } else {
+        const plan = buildPlanFromForm(uuid());
+        await api.plansCreate(plan);
+      }
+
       resetForm();
       await load();
     } catch (e: any) {
-      setErr(e?.message || "Erreur lors de la creation du plan");
+      setErr(e?.message || "Erreur lors de l'enregistrement du plan");
     }
   };
 
@@ -145,6 +168,7 @@ export default function PlanStrength() {
     setErr("");
     try {
       await api.plansAction(id, "complete");
+      if (editingId === id) resetForm();
       await load();
     } catch (e: any) {
       setErr(e?.message || "Erreur lors de la validation du plan");
@@ -155,6 +179,7 @@ export default function PlanStrength() {
     setErr("");
     try {
       await api.plansAction(id, "delete");
+      if (editingId === id) resetForm();
       await load();
     } catch (e: any) {
       setErr(e?.message || "Erreur lors de la suppression du plan");
@@ -167,7 +192,7 @@ export default function PlanStrength() {
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-slate-900">Plan strength</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Cree une seance a faire plus tard. Puis valide-la quand tu l'as faite.
+            Crée une séance à faire. Puis clique "J’ai fait" pour l’envoyer dans le journal.
           </p>
         </div>
 
@@ -178,7 +203,21 @@ export default function PlanStrength() {
         ) : null}
 
         <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 text-sm font-medium text-slate-900">Nouveau plan</div>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="text-sm font-medium text-slate-900">
+              {editingId ? "Modifier un plan" : "Nouveau plan"}
+            </div>
+
+            {editingId ? (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+            ) : null}
+          </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -192,12 +231,12 @@ export default function PlanStrength() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Duree (min)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Durée (min)</label>
               <input
                 type="number"
                 min={1}
                 value={durationMin}
-                onChange={(e) => setDurationMin(Number(e.target.value))}
+                onChange={(e) => setDurationMin(e.target.value === "" ? "" : Number(e.target.value))}
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
               />
             </div>
@@ -335,7 +374,7 @@ export default function PlanStrength() {
               disabled={!canSubmit}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Planifier
+              {editingId ? "Sauvegarder" : "Planifier"}
             </button>
           </div>
         </div>
@@ -351,16 +390,22 @@ export default function PlanStrength() {
               <div key={p.id} className="px-6 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-medium text-slate-900">
-                      Seance strength
-                    </div>
+                    <div className="font-medium text-slate-900">Séance strength</div>
                     <div className="mt-1 text-sm text-slate-700">
-                      {p.durationMin} min · {new Date(p.plannedFor).toLocaleString()}
+                      {p.durationMin ? `${p.durationMin} min · ` : ""}{new Date(p.plannedFor).toLocaleString()}
                     </div>
                     {p.notes ? <div className="mt-1 text-sm text-slate-500">{p.notes}</div> : null}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => loadPlanIntoForm(p)}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Modifier
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => void completePlan(p.id)}
@@ -368,6 +413,7 @@ export default function PlanStrength() {
                     >
                       J’ai fait
                     </button>
+
                     <button
                       type="button"
                       onClick={() => void deletePlan(p.id)}

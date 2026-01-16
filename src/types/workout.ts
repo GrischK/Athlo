@@ -3,18 +3,6 @@ import type {SetGroup} from "@/utils/workoutForm.ts";
 export type Sport = "swim" | "run" | "laser_run" | "strength";
 export type WorkoutStatus = "planned" | "done" | "canceled";
 
-export type WorkoutRecord = {
-  status: WorkoutStatus;
-  workout: Workout;
-};
-
-export type StrengthSetDraft = {
-  count: number;
-  reps?: number;
-  weightKg?: number;
-  durationSec?: number;
-};
-
 export type ExerciseDraft = {
   id: string;
   name: string;
@@ -24,7 +12,7 @@ export type ExerciseDraft = {
 export type StrengthPlan = {
   id: string;
   plannedFor: string; // ISO datetime
-  durationMin: number;
+  durationMin?: number;
   notes?: string;
   exercises: StrengthExercise[];
 };
@@ -33,7 +21,7 @@ export type WorkoutBase = {
   id: string;
   startedAt: string; // ISO datetime
   sport: Sport;
-  durationMin: number;
+  durationMin?: number;
   rpe?: number; // 1-10
   notes?: string;
 };
@@ -64,7 +52,7 @@ export type StrengthDetails = {
 };
 
 export type Workout =
-  | (WorkoutBase & { sport: "run"; details: RunDetails })
-  | (WorkoutBase & { sport: "laser_run"; details: RunDetails })
-  | (WorkoutBase & { sport: "swim"; details: SwimDetails })
+  | (WorkoutBase & { sport: "run"; durationMin: number; details: RunDetails })
+  | (WorkoutBase & { sport: "laser_run"; durationMin: number; details: RunDetails })
+  | (WorkoutBase & { sport: "swim"; durationMin: number; details: SwimDetails })
   | (WorkoutBase & { sport: "strength"; details: StrengthDetails });
