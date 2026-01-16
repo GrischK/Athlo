@@ -1,4 +1,4 @@
-import type {Workout} from "../types/workout.ts";
+import type {Workout, WorkoutRecord} from "../types/workout.ts";
 
 export class ApiError extends Error {
   status: number;
@@ -51,9 +51,9 @@ export const api = {
       method: "GET",
     }),
 
-  workoutsList: async (limit = 30): Promise<Workout[]> => {
-    const r = await request<{ workouts: Workout[] }>(`/api/workouts?limit=${limit}`, { method: "GET" });
-    return r.workouts;
+  workoutsList: async (limit = 30): Promise<WorkoutRecord[]> => {
+    const r = await request<{ records: WorkoutRecord[] }>(`/api/workouts?limit=${limit}`, { method: "GET" });
+    return r.records;
   },
 
   workoutsCreate: (workout: Workout) =>
