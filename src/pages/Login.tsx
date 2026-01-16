@@ -45,16 +45,18 @@ export default function Login() {
       />
       <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-sm p-8">
         <div className="mb-8 text-center flex flex-col justify-center items-center">
-          <img
-            src={logo}
-            alt="Athlo"
-            className="h-8 w-8"
-          />
-          <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
-            Athlo
-          </h1>
+          <div className="flex items-center justify-center gap-2">
+            <img
+              src={logo}
+              alt="Athlo"
+              className="h-8 w-8"
+            />
+            <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
+              Athlo
+            </h1>
+          </div>
           <p className="mt-2 text-sm text-slate-500">
-            Journal d’entraînement personnel
+            Coach d’entraînement personnel
           </p>
         </div>
 
@@ -69,7 +71,7 @@ export default function Login() {
               autoComplete="username"
               required
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition"
-              placeholder="grischka"
+              placeholder="speedator"
             />
           </div>
 
@@ -104,7 +106,7 @@ export default function Login() {
         </form>
 
         <div className="mt-8 text-center text-xs text-slate-400">
-          Simplicité. Régularité. Progression.
+          Simplicité. Régularité. Progression...
         </div>
       </div>
     </div>
