@@ -25,7 +25,7 @@ export default function Journal() {
 
   // Run / Laser-run
   const [distanceKm, setDistanceKm] = useState<number>();
-  const [paceSecPerKm, setPaceSecPerKm] = useState<number | "">();
+  const [paceSecPerKm, setPaceSecPerKm] = useState<number | "">("");
 
   // Swim
   const [distanceM, setDistanceM] = useState<number>();
@@ -244,7 +244,7 @@ export default function Journal() {
                 type="number"
                 min={1}
                 value={durationMin}
-                onChange={(e) => setDurationMin(Number(e.target.value))}
+                onChange={(e) => setDurationMin(e.target.value === "" ? undefined : Number(e.target.value))}
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
               />
             </div>
