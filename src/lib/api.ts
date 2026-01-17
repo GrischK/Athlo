@@ -1,4 +1,5 @@
 import type {StrengthPlan, Workout} from "../types/workout.ts";
+import type {UserGoal} from "@/types/goal.ts";
 
 export class ApiError extends Error {
   status: number;
@@ -88,5 +89,18 @@ export const api = {
       body: JSON.stringify(plan),
     });
     return r.plan;
+  },
+
+  goalGet: async (): Promise<UserGoal | null> => {
+    const r = await request<{ goal: UserGoal | null }>(`/api/goal`, {method: "GET"});
+    return r.goal;
+  },
+
+  goalUpdate: async (text: string): Promise<UserGoal> => {
+    const r = await request<{ goal: UserGoal }>(`/api/goal`, {
+      method: "PUT",
+      body: JSON.stringify({text}),
+    });
+    return r.goal;
   },
 };

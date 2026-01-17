@@ -59,6 +59,19 @@ export default function Navbar() {
           >
             Plan
           </NavLink>
+
+          <NavLink
+            to="/goal"
+            className={({isActive}) =>
+              `text-sm font-medium ${
+                isActive
+                  ? "text-slate-900"
+                  : "text-slate-500 hover:text-slate-900"
+              }`
+            }
+          >
+            Objectif
+          </NavLink>
         </nav>
 
         {/* Right */}

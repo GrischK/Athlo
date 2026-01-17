@@ -5,6 +5,7 @@ import {RequireAuth} from "./auth/RequireAuth";
 import Journal from "./pages/Journal.tsx";
 import AppLayout from "./layouts/AppLayout.tsx";
 import PlanStrength from "@/pages/PlanStrength.tsx";
+import Goal from "@/pages/Goal.tsx";
 
 export default function App() {
   return (
@@ -40,6 +41,14 @@ export default function App() {
           element={
             <RequireAuth>
               <PlanStrength/>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/goal"
+          element={
+            <RequireAuth>
+              < Goal/>
             </RequireAuth>
           }
         />
