@@ -1,5 +1,6 @@
 import type {StrengthPlan, Workout} from "../types/workout.ts";
 import type {UserGoal} from "@/types/goal.ts";
+import type {AiStrengthPlanSuggestion} from "@/types/ai.ts";
 
 export class ApiError extends Error {
   status: number;
@@ -102,5 +103,12 @@ export const api = {
       body: JSON.stringify({text}),
     });
     return r.goal;
+  },
+
+  aiStrengthSuggest: async (days = 7, message?: string) => {
+    return request<AiStrengthPlanSuggestion>(`/api/ai/strength-plan`, {
+      method: "POST",
+      body: JSON.stringify({ days, message }),
+    });
   },
 };

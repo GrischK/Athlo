@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import type {ExerciseDraft, StrengthPlan} from "../types/workout";
 import { localInputToIso, nowLocalInputValue, type SetGroup, uuid } from "../utils/workoutForm";
 import {compressSetsToGroups, formatSetSummary, isoToLocalInputValue, sortPlans} from "@/utils/planStrengthForm.ts";
+import type {AiStrengthPlanSuggestion} from "@/types/ai.ts";
 
 
 const newExerciseDraft = (): ExerciseDraft => ({
@@ -26,6 +27,10 @@ export default function PlanStrength() {
   const [exercises, setExercises] = useState<ExerciseDraft[]>([newExerciseDraft()]);
 
   const plannedForIso = useMemo(() => localInputToIso(plannedForLocal), [plannedForLocal]);
+
+  const [suggestion, setSuggestion] = useState<AiStrengthPlanSuggestion | null>(null);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [aiInput, setAiInput] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -186,6 +191,43 @@ export default function PlanStrength() {
     }
   };
 
+  const suggest = async (message?: string) => {
+    setSuggestLoading(true);
+    setErr("");
+    try {
+      const s = await api.aiStrengthSuggest(7, message);
+      setSuggestion(s);
+      setAiInput("");
+    } catch (e: any) {
+      setErr(e?.message || "Erreur suggestion");
+    } finally {
+      setSuggestLoading(false);
+    }
+  };
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+
+    setEditingId(null);
+    setDurationMin(suggestion.plan.durationMin ?? "");
+    setNotes(suggestion.plan.notes ?? "");
+
+    setExercises(
+      suggestion.plan.exercises.map((ex) => ({
+        id: uuid(),
+        name: ex.name,
+        groups: ex.groups.map((g) => ({
+          count: g.count,
+          reps: g.reps ?? "",
+          weightKg: g.weightKg ?? "",
+          durationSec: g.durationSec ?? "",
+        })),
+      }))
+    );
+  };
+
+
+
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-8">
       <div className="mx-auto max-w-3xl">
@@ -201,6 +243,73 @@ export default function PlanStrength() {
             {err}
           </div>
         ) : null}
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-medium text-slate-900">Suggestion IA</div>
+
+            <button
+              type="button"
+              onClick={() => void suggest()}
+              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              {suggestLoading ? "..." : suggestion ? "Régénérer" : "Proposer une séance"}
+            </button>
+          </div>
+
+          {!suggestion ? (
+            <div className="mt-2 text-sm text-slate-600">
+              Clique sur “Proposer une séance”. Tu pourras ensuite ajuster en répondant.
+            </div>
+          ) : (
+            <>
+              <div className="mt-2 text-sm text-slate-700">{suggestion.message}</div>
+
+              <div className="mt-3 space-y-2">
+                {suggestion.plan.exercises.map((ex, i) => (
+                  <div key={i} className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="font-medium text-slate-900">{ex.name}</div>
+                    <div className="mt-1 text-sm text-slate-600">
+                      {ex.groups.map((g) => {
+                        const parts = [];
+                        parts.push(`${g.count}×`);
+                        if (g.reps) parts.push(`${g.reps} reps`);
+                        if (g.durationSec) parts.push(`${g.durationSec}s`);
+                        if (g.weightKg) parts.push(`${g.weightKg} kg`);
+                        return parts.join(" ");
+                      }).join(" · ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  value={aiInput}
+                  onChange={(e) => setAiInput(e.target.value)}
+                  placeholder='Ex: "pas de pompes", "plus court", "focus abdos"...'
+                  className="w-full flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => void suggest(aiInput)}
+                  disabled={!aiInput.trim() || suggestLoading}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  Envoyer
+                </button>
+
+                <button
+                  type="button"
+                  onClick={applySuggestion}
+                  className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                  Utiliser cette proposition
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
