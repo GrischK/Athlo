@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
-import type {ExerciseDraft, StrengthPlan} from "../types/workout";
+import type { ExerciseDraft, StrengthPlan, StrengthPlanUpsert } from "../types/workout";
 import { localInputToIso, nowLocalInputValue, type SetGroup, uuid } from "../utils/workoutForm";
-import {compressSetsToGroups, formatSetSummary, isoToLocalInputValue, sortPlans} from "@/utils/planStrengthForm.ts";
-import type {AiStrengthPlanSuggestion} from "@/types/ai.ts";
-
+import { compressSetsToGroups, formatSetSummary, isoToLocalInputValue, sortPlans } from "@/utils/planStrengthForm.ts";
+import type { AiStrengthPlanSuggestion } from "@/types/ai.ts";
+import { getErrorMessage } from "@/utils/helpers.ts";
 
 const newExerciseDraft = (): ExerciseDraft => ({
   id: uuid(),
@@ -38,8 +38,8 @@ export default function PlanStrength() {
     try {
       const res = await api.plansList(50);
       setPlans(sortPlans(res));
-    } catch (e: any) {
-      setErr(e?.message || "Erreur lors du chargement des plans");
+    } catch (e: unknown) {
+      setErr(getErrorMessage(e, "Erreur lors du chargement des plans"));
     } finally {
       setLoading(false);
     }
@@ -81,7 +81,7 @@ export default function PlanStrength() {
 
   const canSubmit = useMemo(() => {
     if (durationMin !== "" && Number(durationMin) <= 0) return false;
-      if (!exercises.length) return false;
+    if (!exercises.length) return false;
 
     for (const ex of exercises) {
       if (!ex.name.trim()) return false;
@@ -124,7 +124,7 @@ export default function PlanStrength() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const buildPlanFromForm = (id: string): StrengthPlan => {
+  const buildPlanFromForm = (id: string): StrengthPlanUpsert => {
     const expandedExercises = exercises.map((ex) => {
       const sets = ex.groups.flatMap((g) => {
         const n = Math.max(1, Math.floor(Number(g.count) || 1));
@@ -157,15 +157,16 @@ export default function PlanStrength() {
       if (editingId) {
         const plan = buildPlanFromForm(editingId);
         await api.plansUpdate(plan);
-      } else {
+      }
+      else {
         const plan = buildPlanFromForm(uuid());
         await api.plansCreate(plan);
       }
 
       resetForm();
       await load();
-    } catch (e: any) {
-      setErr(e?.message || "Erreur lors de l'enregistrement du plan");
+    } catch (e: unknown) {
+      setErr(getErrorMessage(e, "Erreur lors de l'enregistrement du plan"));
     }
   };
 
@@ -175,8 +176,8 @@ export default function PlanStrength() {
       await api.plansAction(id, "complete");
       if (editingId === id) resetForm();
       await load();
-    } catch (e: any) {
-      setErr(e?.message || "Erreur lors de la validation du plan");
+    } catch (e: unknown) {
+      setErr(getErrorMessage(e, "Erreur lors de la validation du plan"));
     }
   };
 
@@ -186,8 +187,8 @@ export default function PlanStrength() {
       await api.plansAction(id, "delete");
       if (editingId === id) resetForm();
       await load();
-    } catch (e: any) {
-      setErr(e?.message || "Erreur lors de la suppression du plan");
+    } catch (e: unknown) {
+      setErr(getErrorMessage(e, "Erreur lors de la suppression du plan"));
     }
   };
 
@@ -198,8 +199,8 @@ export default function PlanStrength() {
       const s = await api.aiStrengthSuggest(7, message);
       setSuggestion(s);
       setAiInput("");
-    } catch (e: any) {
-      setErr(e?.message || "Erreur suggestion");
+    } catch (e: unknown) {
+      setErr(getErrorMessage(e, "Erreur suggestion"));
     } finally {
       setSuggestLoading(false);
     }
@@ -225,7 +226,6 @@ export default function PlanStrength() {
       }))
     );
   };
-
 
 
   return (

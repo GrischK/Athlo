@@ -1,4 +1,4 @@
-import type {StrengthPlan, Workout} from "../types/workout.ts";
+import type { StrengthPlan, StrengthPlanUpsert, Workout } from "../types/workout.ts";
 import type {UserGoal} from "@/types/goal.ts";
 import type {AiStrengthPlanSuggestion} from "@/types/ai.ts";
 
@@ -69,7 +69,7 @@ export const api = {
     return r.plans;
   },
 
-  plansCreate: async (plan: StrengthPlan): Promise<StrengthPlan> => {
+  plansCreate: async (plan: StrengthPlanUpsert ): Promise<StrengthPlan> => {
     const r = await request<{ plan: StrengthPlan }>(`/api/plans`, {
       method: "POST",
       body: JSON.stringify(plan),
@@ -84,7 +84,7 @@ export const api = {
     });
   },
 
-  plansUpdate: async (plan: StrengthPlan): Promise<StrengthPlan> => {
+  plansUpdate: async (plan: StrengthPlanUpsert ): Promise<StrengthPlan> => {
     const r = await request<{ plan: StrengthPlan }>(`/api/plans`, {
       method: "PUT",
       body: JSON.stringify(plan),

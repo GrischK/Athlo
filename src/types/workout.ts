@@ -2,6 +2,7 @@ import type { SetGroup } from "@/utils/workoutForm.ts";
 
 export type Sport = "swim" | "run" | "laser_run" | "strength";
 export type PlanStatus = "planned" | "done" | "canceled" | "missed";
+export type StrengthPlanUpsert = Omit<StrengthPlan, "status" | "statusUpdatedAt" | "completedWorkoutId">;
 
 export type ExerciseDraft = {
   id: string;
