@@ -1,6 +1,28 @@
 import { VercelRequest } from "@vercel/node";
 import { PlanStatus } from "../../src/types/workout";
 
+export type StrengthSetInput = {
+  reps?: unknown;
+  weightKg?: unknown;
+  durationSec?: unknown;
+};
+
+export type StrengthExerciseInput = {
+  name?: unknown;
+  sets?: unknown;
+};
+
+export type StrengthPlanInput = {
+  id?: unknown;
+  plannedFor?: unknown;
+  durationMin?: unknown;
+  notes?: unknown;
+  exercises?: unknown;
+  status?: unknown;
+  statusUpdatedAt?: unknown;
+  completedWorkoutId?: unknown;
+};
+
 export function isIsoDateTime(s: unknown): s is string {
   return typeof s === "string" && !Number.isNaN(Date.parse(s));
 }
@@ -15,8 +37,8 @@ export function asNumber(n: unknown): number | null {
   return null;
 }
 
-export function parseBody(req: VercelRequest): any | null {
-  const b: any = (req as any).body;
+export function parseBody(req: VercelRequest): unknown | null {
+  const b: unknown = (req as unknown as { body?: unknown }).body;
   if (b == null) return {};
   if (typeof b === "string") {
     try {
@@ -28,7 +50,7 @@ export function parseBody(req: VercelRequest): any | null {
   return b;
 }
 
-export function parseMaybeJson(v: unknown): any | null {
+export function parseMaybeJson(v: unknown): unknown  | null {
   if (v == null) return null;
   if (typeof v === "object") return v;
   if (typeof v === "string") {
@@ -43,4 +65,8 @@ export function parseMaybeJson(v: unknown): any | null {
 
 export function isPlanStatus(x: unknown): x is PlanStatus {
   return x === "planned" || x === "done" || x === "canceled" || x === "missed";
+}
+
+export function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
 }
