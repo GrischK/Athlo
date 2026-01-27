@@ -2,45 +2,13 @@ import type {VercelRequest, VercelResponse} from "@vercel/node";
 import {kv} from "@vercel/kv";
 import {json} from "./_utils.js";
 import {requireAuth} from "./_auth.js";
-import {StrengthPlan} from "../src/types/workout";
+import { PlanStatus, StrengthPlan } from "../src/types/workout";
+import { asNumber, isIsoDateTime, isPlanStatus, nowIso, parseBody, parseMaybeJson } from "./helpers/helper_plan";
 
-function isIsoDateTime(s: unknown): s is string {
-  return typeof s === "string" && !Number.isNaN(Date.parse(s));
-}
-
-function asNumber(n: unknown): number | null {
-  if (typeof n === "number" && Number.isFinite(n)) return n;
-  if (typeof n === "string" && n.trim() !== "" && Number.isFinite(Number(n))) return Number(n);
-  return null;
-}
-
-function parseBody(req: VercelRequest): any | null {
-  const b: any = (req as any).body;
-  if (b == null) return {};
-  if (typeof b === "string") {
-    try {
-      return JSON.parse(b);
-    } catch {
-      return null;
-    }
-  }
-  return b;
-}
-
-function parseMaybeJson(v: unknown): any | null {
-  if (v == null) return null;
-  if (typeof v === "object") return v;
-  if (typeof v === "string") {
-    try {
-      return JSON.parse(v);
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function validatePlan(body: any): { ok: true; plan: StrengthPlan; ts: number } | { ok: false; error: string } {
+function validatePlan(
+  body: any,
+  existing?: StrengthPlan
+): { ok: true; plan: StrengthPlan; ts: number } | { ok: false; error: string } {
   if (!body || typeof body !== "object") return {ok: false, error: "Invalid JSON"};
 
   const id = body.id;
@@ -72,17 +40,44 @@ function validatePlan(body: any): { ok: true; plan: StrengthPlan; ts: number } |
       const durationSec = s.durationSec === undefined ? undefined : asNumber(s.durationSec);
 
       if (reps !== undefined && (reps === null || reps < 1)) return {ok: false, error: "Invalid set.reps"};
-      if (weightKg !== undefined && (weightKg === null || weightKg < 0)) return {
-        ok: false,
-        error: "Invalid set.weightKg"
-      };
-      if (durationSec !== undefined && (durationSec === null || durationSec < 1)) return {
-        ok: false,
-        error: "Invalid set.durationSec"
-      };
+      if (weightKg !== undefined && (weightKg === null || weightKg < 0)) {
+        return {ok: false, error: "Invalid set.weightKg"};
+      }
+      if (durationSec !== undefined && (durationSec === null || durationSec < 1)) {
+        return {ok: false, error: "Invalid set.durationSec"};
+      }
 
       if (reps === undefined && durationSec === undefined) return {ok: false, error: "Set needs reps or durationSec"};
     }
+  }
+
+  const bodyStatus = body.status;
+
+  if (bodyStatus !== undefined && !isPlanStatus(bodyStatus)) {
+    return {ok: false, error: "Invalid status"};
+  }
+
+  const status: PlanStatus =
+    bodyStatus === undefined ? (existing?.status ?? "planned") : bodyStatus;
+
+  const statusUpdatedAtRaw = body.statusUpdatedAt;
+  const statusUpdatedAt =
+    statusUpdatedAtRaw === undefined
+      ? (existing?.statusUpdatedAt ?? nowIso())
+      : (isIsoDateTime(statusUpdatedAtRaw) ? statusUpdatedAtRaw : null);
+
+  if (statusUpdatedAtRaw !== undefined && statusUpdatedAt === null) {
+    return {ok: false, error: "Invalid statusUpdatedAt"};
+  }
+
+  const completedWorkoutIdRaw = body.completedWorkoutId;
+  const completedWorkoutId =
+    completedWorkoutIdRaw === undefined
+      ? existing?.completedWorkoutId
+      : (typeof completedWorkoutIdRaw === "string" ? completedWorkoutIdRaw : null);
+
+  if (completedWorkoutIdRaw !== undefined && completedWorkoutId === null) {
+    return {ok: false, error: "Invalid completedWorkoutId"};
   }
 
   const plan: StrengthPlan = {
@@ -94,6 +89,10 @@ function validatePlan(body: any): { ok: true; plan: StrengthPlan; ts: number } |
       name: String(ex.name).trim(),
       sets: ex.sets,
     })),
+
+    status,
+    statusUpdatedAt,
+    ...(completedWorkoutId ? {completedWorkoutId} : {}),
   };
 
   return {ok: true, plan, ts: Date.parse(plannedFor)};
@@ -113,7 +112,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const plans = values
       .map(parseMaybeJson)
-      .filter((x): x is StrengthPlan => !!x && typeof x === "object" && typeof (x as any).id === "string");
+      .filter((x): x is StrengthPlan =>
+        !!x &&
+        typeof x === "object" &&
+        typeof (x as any).id === "string" &&
+        isIsoDateTime((x as any).plannedFor) &&
+        isPlanStatus((x as any).status) &&
+        isIsoDateTime((x as any).statusUpdatedAt)
+      );
 
     return json(res, 200, {plans});
   }
@@ -121,6 +127,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "POST") {
     const body = parseBody(req);
     if (body === null) return json(res, 400, {error: "Invalid JSON"});
+
+    body.status = "planned";
+    body.statusUpdatedAt = nowIso();
+    delete body.completedWorkoutId;
 
     const v = validatePlan(body);
     if (v.ok === false) return json(res, 400, {error: v.error});
@@ -133,15 +143,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = parseBody(req);
     if (body === null) return json(res, 400, {error: "Invalid JSON"});
 
-    const v = validatePlan(body);
-    if (v.ok === false) return json(res, 400, {error: v.error});
-
     // find old member by id (scan last 200)
     const values = await kv.zrange<unknown[]>(key, 0, 199, {rev: true});
     for (const raw of values) {
       const existing = parseMaybeJson(raw) as StrengthPlan | null;
       if (!existing || typeof existing !== "object") continue;
-      if (existing.id !== v.plan.id) continue;
+      if (existing.id !== body.id) continue;
+
+      if (existing.status === "done") {
+        return json(res, 409, {error: "Plan already done"});
+      }
+
+      const v = validatePlan(body, existing);
+      if (v.ok === false) return json(res, 400, {error: v.error});
 
       await kv.zrem(key, JSON.stringify(existing));
       await kv.zadd(key, {score: v.ts, member: JSON.stringify(v.plan)});
@@ -154,4 +168,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   return json(res, 405, {error: "Method not allowed"});
 }
-

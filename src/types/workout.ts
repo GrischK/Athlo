@@ -1,7 +1,7 @@
-import type {SetGroup} from "@/utils/workoutForm.ts";
+import type { SetGroup } from "@/utils/workoutForm.ts";
 
 export type Sport = "swim" | "run" | "laser_run" | "strength";
-export type WorkoutStatus = "planned" | "done" | "canceled";
+export type PlanStatus = "planned" | "done" | "canceled" | "missed";
 
 export type ExerciseDraft = {
   id: string;
@@ -15,6 +15,9 @@ export type StrengthPlan = {
   durationMin?: number;
   notes?: string;
   exercises: StrengthExercise[];
+  status: PlanStatus;
+  statusUpdatedAt: string;
+  completedWorkoutId?: string;
 };
 
 export type WorkoutBase = {
