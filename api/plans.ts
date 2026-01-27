@@ -14,7 +14,7 @@ import {
   StrengthExerciseInput,
   StrengthPlanInput,
   StrengthSetInput
-} from "./helpers/helper_plan";
+} from "./helpers/helper_plan.js";
 
 function validatePlan(
   body: StrengthPlanInput,
