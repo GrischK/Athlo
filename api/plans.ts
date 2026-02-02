@@ -2,10 +2,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { kv } from "@vercel/kv";
 import { json } from "./_utils.js";
 import { requireAuth } from "./_auth.js";
-import { PlanStatus, StrengthExercise, StrengthPlan, StrengthSet } from "../src/types/workout";
+import {PlanSource, PlanStatus, StrengthExercise, StrengthPlan, StrengthSet} from "../src/types/workout";
 import {
   asNumber,
-  isIsoDateTime,
+  isIsoDateTime, isPlanSource,
   isPlanStatus,
   isRecord,
   nowIso,
@@ -134,6 +134,27 @@ function validatePlan(
     return { ok: false, error: "Invalid completedWorkoutId" };
   }
 
+  const sourceRaw = body.source;
+
+  let source: PlanSource;
+
+  if (existing && body.source !== undefined) {
+    return {ok:false, error:"source is immutable"};
+  }
+
+  if (existing) {
+    // on ne laisse pas le front le modifier
+    source = existing.source;
+  } else {
+    if (sourceRaw === undefined) {
+      source = "manual";
+    } else if (isPlanSource(sourceRaw)) {
+      source = sourceRaw;
+    } else {
+      return { ok: false, error: "Invalid source" };
+    }
+  }
+
   const plan: StrengthPlan = {
     id,
     plannedFor,
@@ -142,6 +163,7 @@ function validatePlan(
     exercises,
     status,
     statusUpdatedAt,
+    source,
     ...(completedWorkoutId ? { completedWorkoutId: completedWorkoutId } : {}),
   };
 
@@ -183,6 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const bodyForCreate: StrengthPlanInput = {
       ...body,
       status: "planned",
+      source: "manual",
       statusUpdatedAt: nowIso(),
       completedWorkoutId: undefined,
     };

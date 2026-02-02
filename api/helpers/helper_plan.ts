@@ -1,5 +1,5 @@
 import { VercelRequest } from "@vercel/node";
-import { PlanStatus } from "../../src/types/workout";
+import {PlanSource, PlanStatus} from "../../src/types/workout";
 
 export type StrengthSetInput = {
   reps?: unknown;
@@ -19,6 +19,7 @@ export type StrengthPlanInput = {
   notes?: unknown;
   exercises?: unknown;
   status?: unknown;
+  source?: unknown;
   statusUpdatedAt?: unknown;
   completedWorkoutId?: unknown;
 };
@@ -69,4 +70,8 @@ export function isPlanStatus(x: unknown): x is PlanStatus {
 
 export function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
+}
+
+export function isPlanSource(x: unknown): x is PlanSource {
+  return x === "manual" || x === "ai" || x === "routine";
 }
