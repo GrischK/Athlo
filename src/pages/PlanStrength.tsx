@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type { ExerciseDraft, StrengthPlan, StrengthPlanUpsert } from "../types/workout";
 import { localInputToIso, nowLocalInputValue, type SetGroup, uuid } from "../utils/workoutForm";
@@ -35,12 +35,16 @@ export default function PlanStrength() {
   const [aiInput, setAiInput] = useState("");
 
   const [activeTab, setActiveTab] = useState<PlanTab>("planned");
+  const didMaterializeRef = useRef(false);
 
   const load = async () => {
     setLoading(true);
     setErr("");
     try {
-      await api.routinesMaterializeWeek();
+      if (!didMaterializeRef.current) {
+        didMaterializeRef.current = true;
+        await api.routinesMaterializeWeek();
+      }
       const res = await api.plansList(50);
       setPlans(sortPlans(res));
     } catch (e: unknown) {
