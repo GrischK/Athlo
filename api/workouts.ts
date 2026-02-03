@@ -5,7 +5,7 @@ import {requireAuth} from "./_auth.js";
 
 type Sport = "swim" | "run" | "laser_run" | "strength";
 
-type WorkoutBase = {
+export type WorkoutBase = {
   id: string;
   startedAt: string;
   sport: Sport;

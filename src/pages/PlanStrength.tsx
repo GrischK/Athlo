@@ -40,6 +40,7 @@ export default function PlanStrength() {
     setLoading(true);
     setErr("");
     try {
+      await api.routinesMaterializeWeek();
       const res = await api.plansList(50);
       setPlans(sortPlans(res));
     } catch (e: unknown) {
@@ -52,6 +53,7 @@ export default function PlanStrength() {
   useEffect(() => {
     void load();
   }, []);
+
 
   const addExercise = () => setExercises((prev) => [...prev, newExerciseDraft()]);
 

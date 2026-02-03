@@ -1,6 +1,7 @@
 import type { StrengthPlan, StrengthPlanUpsert, Workout } from "../types/workout.ts";
 import type {UserGoal} from "@/types/goal.ts";
 import type {AiStrengthPlanSuggestion} from "@/types/ai.ts";
+import type { RoutineRule, RoutinesMaterializeResult } from "@/types/routine.ts";
 
 export class ApiError extends Error {
   status: number;
@@ -110,5 +111,30 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ days, message }),
     });
+  },
+
+  routinesList: async (): Promise<RoutineRule[]> => {
+    const r = await request<{ routines: RoutineRule[] }>(`/api/routines`, {method: "GET"});
+    return r.routines;
+  },
+
+  routinesCreate: async (routine: Omit<RoutineRule, "createdAt" | "updatedAt">): Promise<RoutineRule> => {
+    const r = await request<{ routine: RoutineRule }>(`/api/routines`, {
+      method: "POST",
+      body: JSON.stringify(routine),
+    });
+    return r.routine;
+  },
+
+  routinesUpdate: async (routine: Partial<Omit<RoutineRule, "createdAt" | "updatedAt">> & { id: string }): Promise<RoutineRule> => {
+    const r = await request<{ routine: RoutineRule }>(`/api/routines`, {
+      method: "PUT",
+      body: JSON.stringify(routine),
+    });
+    return r.routine;
+  },
+
+  routinesMaterializeWeek: async (): Promise<RoutinesMaterializeResult> => {
+    return await request<RoutinesMaterializeResult>(`/api/routines_materialize`, { method: "POST" });
   },
 };
