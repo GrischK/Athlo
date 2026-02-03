@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import type { ExerciseDraft, StrengthPlan, StrengthPlanUpsert } from "../types/workout";
 import { localInputToIso, nowLocalInputValue, type SetGroup, uuid } from "../utils/workoutForm";
-import { compressSetsToGroups, formatSetSummary, isoToLocalInputValue, sortPlans } from "@/utils/planStrengthForm.ts";
+import { compressSetsToGroups, isoToLocalInputValue, sortPlans } from "@/utils/planStrengthForm.ts";
 import type { AiStrengthPlanSuggestion } from "@/types/ai.ts";
 import { getErrorMessage } from "@/utils/helpers.ts";
 
@@ -11,6 +11,8 @@ const newExerciseDraft = (): ExerciseDraft => ({
   name: "",
   groups: [{ count: "", reps: "", weightKg: "", durationSec: "" }],
 });
+
+type PlanTab = "planned" | "canceled_missed";
 
 export default function PlanStrength() {
   const [plans, setPlans] = useState<StrengthPlan[]>([]);
@@ -31,6 +33,8 @@ export default function PlanStrength() {
   const [suggestion, setSuggestion] = useState<AiStrengthPlanSuggestion | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [aiInput, setAiInput] = useState("");
+
+  const [activeTab, setActiveTab] = useState<PlanTab>("planned");
 
   const load = async () => {
     setLoading(true);
@@ -227,6 +231,18 @@ export default function PlanStrength() {
     );
   };
 
+  const plannedPlans = useMemo(
+    () => plans.filter((p) => p.status === "planned"),
+    [plans]
+  );
+
+  const canceledOrMissedPlans = useMemo(
+    () => plans.filter((p) => p.status === "canceled" || p.status === "missed"),
+    [plans]
+  );
+
+  const visiblePlans =
+    activeTab === "planned" ? plannedPlans : canceledOrMissedPlans;
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-8">
@@ -491,37 +507,74 @@ export default function PlanStrength() {
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
             <div className="text-sm font-medium text-slate-900">Plans</div>
-            <div className="text-xs text-slate-500">{loading ? "Chargement." : `${plans.length} plan(s)`}</div>
+            <div className="mx-auto flex max-w-3xl gap-2 px-6 py-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab("planned")}
+                className={
+                  "flex-1 rounded-2xl px-4 py-3 text-sm font-medium " +
+                  (activeTab === "planned"
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-300 bg-white text-slate-700")
+                }
+              >
+                Planned ({plannedPlans.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("canceled_missed")}
+                className={
+                  "flex-1 rounded-2xl px-4 py-3 text-sm font-medium " +
+                  (activeTab === "canceled_missed"
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-300 bg-white text-slate-700")
+                }
+              >
+                Canceled / missed ({canceledOrMissedPlans.length})
+              </button>
+            </div>
           </div>
 
           <div className="divide-y divide-slate-100">
-            {plans.map((p) => (
+            {visiblePlans.map((p) => (
               <div key={p.id} className="px-6 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="font-medium text-slate-900">Séance strength</div>
+
                     <div className="mt-1 text-sm text-slate-700">
-                      {p.durationMin ? `${p.durationMin} min · ` : ""}{new Date(p.plannedFor).toLocaleString()}
+                      {p.durationMin ? `${p.durationMin} min · ` : ""}
+                      {new Date(p.plannedFor).toLocaleString()}
+                      {p.status === "missed" ? " · Missed" : ""}
+                      {p.status === "canceled" ? " · Canceled" : ""}
                     </div>
-                    {p.notes ? <div className="mt-1 text-sm text-slate-500">{p.notes}</div> : null}
+
+                    {p.notes ? (
+                      <div className="mt-1 text-sm text-slate-500">{p.notes}</div>
+                    ) : null}
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => loadPlanIntoForm(p)}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                    >
-                      Modifier
-                    </button>
+                    {p.status === "planned" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => loadPlanIntoForm(p)}
+                          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          Modifier
+                        </button>
 
-                    <button
-                      type="button"
-                      onClick={() => void completePlan(p.id)}
-                      className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                    >
-                      J’ai fait
-                    </button>
+                        <button
+                          type="button"
+                          onClick={() => void completePlan(p.id)}
+                          className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                        >
+                          J’ai fait
+                        </button>
+                      </>
+                    )}
 
                     <button
                       type="button"
@@ -532,22 +585,8 @@ export default function PlanStrength() {
                     </button>
                   </div>
                 </div>
-
-                {p.exercises?.length ? (
-                  <div className="mt-3 text-sm text-slate-600">
-                    {p.exercises.map((ex, i) => (
-                      <div key={`${p.id}-${i}`} className="mt-2">
-                        <div className="font-medium text-slate-700">{ex.name}</div>
-                        <div className="mt-1 text-sm text-slate-500">
-                          {formatSetSummary(ex.sets).join(" · ")}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             ))}
-
             {!loading && plans.length === 0 ? (
               <div className="px-6 py-10 text-sm text-slate-500">Aucun plan pour le moment.</div>
             ) : null}
