@@ -6,6 +6,7 @@ import Journal from "./pages/Journal.tsx";
 import AppLayout from "./layouts/AppLayout.tsx";
 import PlanStrength from "@/pages/PlanStrength.tsx";
 import Goal from "@/pages/Goal.tsx";
+import Routines from "@/pages/Routine.tsx";
 
 export default function App() {
   return (
@@ -49,6 +50,14 @@ export default function App() {
           element={
             <RequireAuth>
               < Goal/>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/routine"
+          element={
+            <RequireAuth>
+              <Routines/>
             </RequireAuth>
           }
         />

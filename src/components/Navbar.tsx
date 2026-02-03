@@ -57,6 +57,9 @@ export default function Navbar() {
           <NavLink to="/plan" className={navClass}>
             Plan
           </NavLink>
+          <NavLink to="/routine" className={navClass}>
+            Routine
+          </NavLink>
           <NavLink to="/goal" className={navClass}>
             Objectif
           </NavLink>

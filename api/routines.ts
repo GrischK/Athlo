@@ -4,7 +4,7 @@ import {json} from "./_utils.js";
 import {requireAuth} from "./_auth.js";
 import {isRecord, parseBody, parseMaybeJson} from "./helpers/helper_plan.js";
 import { RoutineRule } from "../src/types/routine";
-import { isRoutineRule, validateRoutine } from "./helpers/helper_routine";
+import { isRoutineRule, validateRoutine } from "./helpers/helper_routine.js";
 
 export type RoutineRuleInput = {
   id?: unknown;

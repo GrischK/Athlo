@@ -5,7 +5,7 @@ import {requireAuth} from "./_auth.js";
 import type { StrengthPlan} from "../src/types/workout";
 import { nowIso, parseMaybeJson} from "./helpers/helper_plan.js";
 import {addDaysYMD, parisStartOfWeekMonday, parisWallTimeToIso, ymdToIsoDate} from "./helpers/helper_time_paris.js";
-import { isRoutineRule, isStrengthPlanLike } from "./helpers/helper_routine";
+import { isRoutineRule, isStrengthPlanLike } from "./helpers/helper_routine.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const authed = await requireAuth(req, res);
