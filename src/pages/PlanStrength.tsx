@@ -5,7 +5,7 @@ import { localInputToIso, nowLocalInputValue, type SetGroup, uuid } from "../uti
 import { compressSetsToGroups, isoToLocalInputValue, sortPlans } from "@/utils/planStrengthForm.ts";
 import type { AiStrengthPlanSuggestion } from "@/types/ai.ts";
 import { getErrorMessage } from "@/utils/helpers.ts";
-import {displaySportName} from "@/utils/planStrength.ts";
+import {displaySportName} from "@/utils/planStrength-helper.ts";
 
 const newExerciseDraft = (): ExerciseDraft => ({
   id: uuid(),

@@ -3,7 +3,7 @@ import {kv} from "@vercel/kv";
 import {json} from "./_utils.js";
 import {requireAuth} from "./_auth.js";
 import {isRecord, parseBody, parseMaybeJson} from "./helpers/helper_plan.js";
-import { RoutineRule } from "../src/types/routine";
+import { RoutineRule } from "../src/types/routine.js";
 import { isRoutineRule, validateRoutine } from "./helpers/helper_routine.js";
 
 export type RoutineRuleInput = {

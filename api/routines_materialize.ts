@@ -2,7 +2,7 @@ import type {VercelRequest, VercelResponse} from "@vercel/node";
 import {kv} from "@vercel/kv";
 import {json} from "./_utils.js";
 import {requireAuth} from "./_auth.js";
-import type { StrengthPlan} from "../src/types/workout";
+import type { StrengthPlan} from "../src/types/workout.js";
 import { nowIso, parseMaybeJson} from "./helpers/helper_plan.js";
 import {addDaysYMD, parisStartOfWeekMonday, parisWallTimeToIso, ymdToIsoDate} from "./helpers/helper_time_paris.js";
 import { isRoutineRule, isStrengthPlanLike } from "./helpers/helper_routine.js";
