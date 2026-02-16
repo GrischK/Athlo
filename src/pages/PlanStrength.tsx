@@ -5,6 +5,7 @@ import { localInputToIso, nowLocalInputValue, type SetGroup, uuid } from "../uti
 import { compressSetsToGroups, isoToLocalInputValue, sortPlans } from "@/utils/planStrengthForm.ts";
 import type { AiStrengthPlanSuggestion } from "@/types/ai.ts";
 import { getErrorMessage } from "@/utils/helpers.ts";
+import {displaySportName} from "@/utils/planStrength.ts";
 
 const newExerciseDraft = (): ExerciseDraft => ({
   id: uuid(),
@@ -547,7 +548,7 @@ export default function PlanStrength() {
               <div key={p.id} className="px-6 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-medium text-slate-900">Séance strength</div>
+                    <div className="font-medium text-slate-900">{p.sport ? displaySportName(p.sport) : "Séance"}</div>
 
                     <div className="mt-1 text-sm text-slate-700">
                       {p.durationMin ? `${p.durationMin} min · ` : ""}

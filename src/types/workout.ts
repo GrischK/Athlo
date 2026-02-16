@@ -22,6 +22,7 @@ export type StrengthPlan = {
   completedWorkoutId?: string;
   source: PlanSource;
   routineId?: string;
+  sport?: string;
 };
 
 export type WorkoutBase = {

@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       durationMin: typeof r.durationMin === "number" ? r.durationMin : undefined,
       notes: typeof r.notes === "string" && r.notes.trim() ? r.notes.trim() : undefined,
       exercises: [],
-
+      sport: r.sport,
       status: "planned",
       statusUpdatedAt: nowIso(),
       source: "routine",
