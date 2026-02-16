@@ -11,7 +11,11 @@ export function isWeekday1to7(x: unknown): x is RoutineRule["weekday"] {
   return x === 1 || x === 2 || x === 3 || x === 4 || x === 5 || x === 6 || x === 7;
 }
 
-export function validateRoutine(input: RoutineRuleInput, existing?: RoutineRule): { ok: true; routine: RoutineRule; ts: number } | { ok: false; error: string } {
+type ValidateOk = { ok: true; routine: RoutineRule; ts: number };
+type ValidateErr = { ok: false; error: string };
+type ValidateResult = ValidateOk | ValidateErr;
+
+export function validateRoutine(input: RoutineRuleInput, existing?: RoutineRule): (ValidateResult) {
   const idRaw = input.id;
 
   let id: string;

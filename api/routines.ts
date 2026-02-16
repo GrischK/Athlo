@@ -37,8 +37,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isRecord(raw)) return json(res, 400, {error: "Invalid JSON"});
 
     const v = validateRoutine(raw as RoutineRuleInput);
-    if (!v.ok) return json(res, 400, {error: v.error});
 
+    if (v.ok === false) {
+      return json(res, 400, { error: v.error });
+    }
     await kv.zadd(key, {score: v.ts, member: JSON.stringify(v.routine)});
     return json(res, 201, {ok: true, routine: v.routine});
   }
@@ -59,8 +61,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (existing.id !== input.id) continue;
 
       const v = validateRoutine(input, existing);
-      if (!v.ok) return json(res, 400, {error: v.error});
-
+      if (v.ok === false) {
+        return json(res, 400, { error: v.error });
+      }
       await kv.zrem(key, JSON.stringify(existing));
       await kv.zadd(key, {score: v.ts, member: JSON.stringify(v.routine)});
 
