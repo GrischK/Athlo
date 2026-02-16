@@ -1,32 +1,39 @@
 import {useEffect, useState} from "react";
-import type {StrengthPlan} from "@/types/workout.ts";
+import type {StrengthPlan, Workout} from "@/types/workout.ts";
 import {displaySportName} from "@/utils/planStrength.helper.ts";
+import {api} from "@/lib/api.ts";
 
 export default function Home() {
   const [plans, setPlans] = useState<StrengthPlan[]>([]);
+  const [lastWorkout, setLastWorkout] = useState<Workout>();
   const [loading, setLoading] = useState(true);
 
+  const load = async () => {
+    setLoading(true);
+    try {
+      const workoutRes = await api.workoutsList(30);
+
+      setLastWorkout(workoutRes[0]);
+      const planRes = await fetch("/api/plans");
+      const planData = await planRes.json();
+      const today = new Date().toISOString().split("T")[0];
+
+      const plansForToday = (planData.plans ?? []).filter((plan: StrengthPlan) =>
+        plan.plannedFor.startsWith(today)
+      );
+
+      setPlans(plansForToday);
+    } catch (error) {
+      console.error("Erreur récupération plan ou workour :", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const res = await fetch("/api/plans");
-        const data = await res.json();
-        const today = new Date().toISOString().split("T")[0];
-
-        const plansForToday = (data.plans ?? []).filter((plan: StrengthPlan) =>
-          plan.plannedFor.startsWith(today)
-        );
-
-        setPlans(plansForToday);
-      } catch (error) {
-        console.error("Erreur récupération plans :", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPlans();
+    void load();
   }, []);
+
 
   return (
     <div className="mx-auto max-w-3xl bg-slate-50 px-6 py-8">
@@ -66,9 +73,20 @@ export default function Home() {
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Dernière activité</p>
-              <p className="mt-1 font-medium text-slate-900">
-                —
-              </p>
+              {loading ? (
+                <p className="mt-1 text-slate-400">Chargement...</p>
+              ) : !lastWorkout ? (
+                <p className="mt-1 font-medium text-slate-900">
+                  —
+                </p>
+              ) : (
+                <p
+                  className="mt-1 font-medium text-slate-900"
+                >
+                  {lastWorkout.sport ? displaySportName(lastWorkout.sport) : "Séance"}
+                </p>
+              )
+              }
             </div>
           </div>
         </section>
