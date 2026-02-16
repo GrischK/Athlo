@@ -2,7 +2,7 @@ import type {VercelRequest, VercelResponse} from "@vercel/node";
 import {kv} from "@vercel/kv";
 import {json} from "./_utils.js";
 import {requireAuth} from "./_auth.js";
-import {UserGoal} from "../src/types/goal";
+import {UserGoal} from "../src/types/goal.js";
 
 function parseBody(req: VercelRequest): any | null {
   const b: any = (req as any).body;

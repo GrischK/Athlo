@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import type {StrengthPlan} from "@/types/workout.ts";
-import {displaySportName} from "@/utils/planStrength-helper.ts";
+import {displaySportName} from "@/utils/planStrength.helper.ts";
 
 export default function Home() {
   const [plans, setPlans] = useState<StrengthPlan[]>([]);

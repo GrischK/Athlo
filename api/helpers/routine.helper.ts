@@ -1,6 +1,6 @@
-import { isRecord, nowIso } from "./helper_plan.js";
-import { RoutineRule } from "../../src/types/routine";
-import { RoutineRuleInput } from "../routines";
+import { isRecord, nowIso } from "./plan.helper.js";
+import { RoutineRule } from "../../src/types/routine.js";
+import { RoutineRuleInput } from "../routines.js";
 
 export function isTimeLocal(x: unknown): x is string {
   if (typeof x !== "string") return false;

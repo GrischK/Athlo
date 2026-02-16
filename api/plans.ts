@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { kv } from "@vercel/kv";
 import { json } from "./_utils.js";
 import { requireAuth } from "./_auth.js";
-import {PlanSource, PlanStatus, StrengthExercise, StrengthPlan, StrengthSet} from "../src/types/workout";
+import {PlanSource, PlanStatus, StrengthExercise, StrengthPlan, StrengthSet} from "../src/types/workout.js";
 import {
   asNumber,
   isIsoDateTime, isPlanSource,
@@ -14,7 +14,7 @@ import {
   StrengthExerciseInput,
   StrengthPlanInput,
   StrengthSetInput
-} from "./helpers/helper_plan.js";
+} from "./helpers/plan.helper.js";
 
 function validatePlan(
   body: StrengthPlanInput,

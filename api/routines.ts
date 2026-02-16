@@ -2,9 +2,9 @@ import type {VercelRequest, VercelResponse} from "@vercel/node";
 import {kv} from "@vercel/kv";
 import {json} from "./_utils.js";
 import {requireAuth} from "./_auth.js";
-import {isRecord, parseBody, parseMaybeJson} from "./helpers/helper_plan.js";
+import {isRecord, parseBody, parseMaybeJson} from "./helpers/plan.helper.js";
 import { RoutineRule } from "../src/types/routine.js";
-import { isRoutineRule, validateRoutine } from "./helpers/helper_routine.js";
+import { isRoutineRule, validateRoutine } from "./helpers/routine.helper.js";
 
 export type RoutineRuleInput = {
   id?: unknown;

@@ -1,5 +1,5 @@
 import { VercelRequest } from "@vercel/node";
-import {PlanSource, PlanStatus} from "../../src/types/workout";
+import {PlanSource, PlanStatus} from "../../src/types/workout.js";
 
 export type StrengthSetInput = {
   reps?: unknown;

@@ -3,9 +3,9 @@ import {kv} from "@vercel/kv";
 import {json} from "./_utils.js";
 import {requireAuth} from "./_auth.js";
 import type { StrengthPlan} from "../src/types/workout.js";
-import { nowIso, parseMaybeJson} from "./helpers/helper_plan.js";
-import {addDaysYMD, parisStartOfWeekMonday, parisWallTimeToIso, ymdToIsoDate} from "./helpers/helper_time_paris.js";
-import { isRoutineRule, isStrengthPlanLike } from "./helpers/helper_routine.js";
+import { nowIso, parseMaybeJson} from "./helpers/plan.helper.js";
+import {addDaysYMD, parisStartOfWeekMonday, parisWallTimeToIso, ymdToIsoDate} from "./helpers/timeParis.helper.js";
+import { isRoutineRule, isStrengthPlanLike } from "./helpers/routine.helper.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const authed = await requireAuth(req, res);
