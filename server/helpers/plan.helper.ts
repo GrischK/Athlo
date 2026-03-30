@@ -1,4 +1,4 @@
-import { VercelRequest } from "@vercel/node";
+import {VercelRequest} from "@vercel/node";
 import {PlanSource, PlanStatus} from "../../src/types/workout.js";
 
 export type StrengthSetInput = {
@@ -51,7 +51,7 @@ export function parseBody(req: VercelRequest): unknown | null {
   return b;
 }
 
-export function parseMaybeJson(v: unknown): unknown  | null {
+export function parseMaybeJson(v: unknown): unknown | null {
   if (v == null) return null;
   if (typeof v === "object") return v;
   if (typeof v === "string") {

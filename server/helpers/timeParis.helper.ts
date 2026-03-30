@@ -30,7 +30,7 @@ export function parisNowParts(): { y: number; m: number; d: number; weekday1to7:
               wd.startsWith("sam") ? 6 :
                 7;
 
-  return { y, m, d, weekday1to7 };
+  return {y, m, d, weekday1to7};
 }
 
 export function addDaysYMD(ymd: { y: number; m: number; d: number }, deltaDays: number): {
@@ -40,7 +40,7 @@ export function addDaysYMD(ymd: { y: number; m: number; d: number }, deltaDays: 
 } {
   const dt = new Date(Date.UTC(ymd.y, ymd.m - 1, ymd.d));
   dt.setUTCDate(dt.getUTCDate() + deltaDays);
-  return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
+  return {y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate()};
 }
 
 export function ymdToIsoDate(ymd: { y: number; m: number; d: number }): string {
@@ -48,7 +48,7 @@ export function ymdToIsoDate(ymd: { y: number; m: number; d: number }): string {
 }
 
 function parisOffsetMinutesAt(utcMillis: number): number {
-  const dtf = new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "shortOffset" });
+  const dtf = new Intl.DateTimeFormat("en-US", {timeZone: TZ, timeZoneName: "shortOffset"});
   const tzPart = dtf.formatToParts(new Date(utcMillis)).find((p) => p.type === "timeZoneName")?.value || "GMT+0";
   const m = tzPart.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
   if (!m) return 0;
@@ -58,20 +58,16 @@ function parisOffsetMinutesAt(utcMillis: number): number {
   return sign * (hh * 60 + mm);
 }
 
-// Convertit un “mur de temps” Europe/Paris en ISO UTC (string)
 export function parisWallTimeToIso(ymd: { y: number; m: number; d: number }, timeLocal: string): string {
   const [hhStr, mmStr] = timeLocal.split(":");
   const hh = Number(hhStr);
   const mm = Number(mmStr);
 
-  // 1er guess: interpréter comme UTC
   let utcMillis = Date.UTC(ymd.y, ymd.m - 1, ymd.d, hh, mm, 0);
 
-  // corrige avec offset Paris à ce moment
   const off1 = parisOffsetMinutesAt(utcMillis);
   utcMillis = Date.UTC(ymd.y, ymd.m - 1, ymd.d, hh, mm, 0) - off1 * 60_000;
 
-  // recalcul offset une fois (DST edge cases)
   const off2 = parisOffsetMinutesAt(utcMillis);
   utcMillis = Date.UTC(ymd.y, ymd.m - 1, ymd.d, hh, mm, 0) - off2 * 60_000;
 
@@ -80,6 +76,6 @@ export function parisWallTimeToIso(ymd: { y: number; m: number; d: number }, tim
 
 export function parisStartOfWeekMonday(): { y: number; m: number; d: number } {
   const now = parisNowParts();
-  const deltaToMonday = 1 - now.weekday1to7; // lundi=1
-  return addDaysYMD({ y: now.y, m: now.m, d: now.d }, deltaToMonday);
+  const deltaToMonday = 1 - now.weekday1to7;
+  return addDaysYMD({y: now.y, m: now.m, d: now.d}, deltaToMonday);
 }

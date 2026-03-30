@@ -1,20 +1,10 @@
 import type {VercelRequest, VercelResponse} from "@vercel/node";
 import {kv} from "@vercel/kv";
-import {json} from "./_utils.js";
-import {requireAuth} from "./_auth.js";
-import {isRecord, parseBody, parseMaybeJson} from "./helpers/plan.helper.js";
+import {json} from "../server/_utils.js";
+import {requireAuth} from "../server/_auth.js";
+import {isRecord, parseBody, parseMaybeJson} from "../server/helpers/plan.helper.js";
 import { RoutineRule } from "../src/types/routine.js";
-import { isRoutineRule, validateRoutine } from "./helpers/routine.helper.js";
-
-export type RoutineRuleInput = {
-  id?: unknown;
-  sport?: unknown;
-  weekday?: unknown;
-  timeLocal?: unknown;
-  durationMin?: unknown;
-  notes?: unknown;
-  isEnabled?: unknown;
-};
+import {isRoutineRule, RoutineRuleInput, validateRoutine} from "../server/helpers/routine.helper.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const authed = await requireAuth(req, res);

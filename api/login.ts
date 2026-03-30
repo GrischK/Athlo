@@ -1,7 +1,7 @@
 import type {VercelRequest, VercelResponse} from "@vercel/node";
 import bcrypt from "bcryptjs";
 import {kv} from "@vercel/kv";
-import {json, newToken, setSessionCookie} from "./_utils.js";
+import {json, newToken, setSessionCookie} from "../server/_utils.js";
 
 type Body = { username?: string; password?: string };
 

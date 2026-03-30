@@ -1,9 +1,9 @@
 import type {VercelRequest, VercelResponse} from "@vercel/node";
 import {kv} from "@vercel/kv";
-import {json} from "./_utils.js";
-import {requireAuth} from "./_auth.js";
+import {json} from "../server/_utils.js";
+import {requireAuth} from "../server/_auth.js";
 import type {StrengthExercise, StrengthPlan, WorkoutBase} from "../src/types/workout.js";
-import {isRecord, nowIso, parseBody, parseMaybeJson} from "./helpers/plan.helper.js";
+import {isRecord, nowIso, parseBody, parseMaybeJson} from "../server/helpers/plan.helper.js";
 
 type StrengthWorkoutBase = WorkoutBase & {
   sport: "strength";

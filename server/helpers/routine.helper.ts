@@ -1,6 +1,15 @@
-import { isRecord, nowIso } from "./plan.helper.js";
-import { RoutineRule } from "../../src/types/routine.js";
-import { RoutineRuleInput } from "../routines.js";
+import {isRecord, nowIso} from "./plan.helper.js";
+import {RoutineRule} from "../../src/types/routine.js";
+
+export type RoutineRuleInput = {
+  id?: unknown;
+  sport?: unknown;
+  weekday?: unknown;
+  timeLocal?: unknown;
+  durationMin?: unknown;
+  notes?: unknown;
+  isEnabled?: unknown;
+};
 
 export function isTimeLocal(x: unknown): x is string {
   if (typeof x !== "string") return false;
@@ -15,7 +24,7 @@ type ValidateOk = { ok: true; routine: RoutineRule; ts: number };
 type ValidateErr = { ok: false; error: string };
 type ValidateResult = ValidateOk | ValidateErr;
 
-export function validateRoutine(input: RoutineRuleInput, existing?: RoutineRule): (ValidateResult) {
+export function validateRoutine(input: RoutineRuleInput, existing?: RoutineRule): ValidateResult {
   const idRaw = input.id;
 
   let id: string;
