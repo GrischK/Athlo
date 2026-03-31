@@ -45,53 +45,62 @@ function validatePlan(
     return { ok: false, error: "Invalid notes" };
   }
 
-  if (!Array.isArray(exercisesRaw) || exercisesRaw.length === 0) {
+  const exercises: StrengthExercise[] = [];
+  const isStrengthLikePlan = !existing?.sport || existing.sport === "strength";
+
+  if (exercisesRaw !== undefined && !Array.isArray(exercisesRaw)) {
     return { ok: false, error: "Invalid exercises" };
   }
 
-  const exercises: StrengthExercise[] = [];
-
-  for (const exRaw of exercisesRaw) {
-    if (!isRecord(exRaw)) return { ok: false, error: "Invalid exercise" };
-
-    const ex = exRaw as StrengthExerciseInput;
-
-    if (typeof ex.name !== "string" || ex.name.trim() === "") {
-      return { ok: false, error: "Invalid exercise.name" };
-    }
-    if (!Array.isArray(ex.sets) || ex.sets.length === 0) {
-      return { ok: false, error: "Invalid exercise.sets" };
+  if (isStrengthLikePlan) {
+    if (!Array.isArray(exercisesRaw) || exercisesRaw.length === 0) {
+      return { ok: false, error: "Invalid exercises" };
     }
 
-    const sets: StrengthSet[] = [];
+    for (const exRaw of exercisesRaw) {
+      if (!isRecord(exRaw)) return { ok: false, error: "Invalid exercise" };
 
-    for (const setRaw of ex.sets) {
-      if (!isRecord(setRaw)) return { ok: false, error: "Invalid set" };
-      const s = setRaw as StrengthSetInput;
+      const ex = exRaw as StrengthExerciseInput;
 
-      const reps = s.reps === undefined ? undefined : asNumber(s.reps);
-      const weightKg = s.weightKg === undefined ? undefined : asNumber(s.weightKg);
-      const durationSec = s.durationSec === undefined ? undefined : asNumber(s.durationSec);
+      if (typeof ex.name !== "string" || ex.name.trim() === "") {
+        return { ok: false, error: "Invalid exercise.name" };
+      }
+      if (!Array.isArray(ex.sets) || ex.sets.length === 0) {
+        return { ok: false, error: "Invalid exercise.sets" };
+      }
 
-      if (reps !== undefined && (reps === null || reps < 1)) return { ok: false, error: "Invalid set.reps" };
-      if (weightKg !== undefined && (weightKg === null || weightKg < 0)) return {
-        ok: false,
-        error: "Invalid set.weightKg"
-      };
-      if (durationSec !== undefined && (durationSec === null || durationSec < 1)) return {
-        ok: false,
-        error: "Invalid set.durationSec"
-      };
-      if (reps === undefined && durationSec === undefined) return { ok: false, error: "Set needs reps or durationSec" };
+      const sets: StrengthSet[] = [];
 
-      sets.push({
-        ...(reps !== undefined ? { reps } : {}),
-        ...(weightKg !== undefined ? { weightKg } : {}),
-        ...(durationSec !== undefined ? { durationSec } : {}),
-      });
+      for (const setRaw of ex.sets) {
+        if (!isRecord(setRaw)) return { ok: false, error: "Invalid set" };
+        const s = setRaw as StrengthSetInput;
+
+        const reps = s.reps === undefined ? undefined : asNumber(s.reps);
+        const weightKg = s.weightKg === undefined ? undefined : asNumber(s.weightKg);
+        const durationSec = s.durationSec === undefined ? undefined : asNumber(s.durationSec);
+
+        if (reps !== undefined && (reps === null || reps < 1)) return { ok: false, error: "Invalid set.reps" };
+        if (weightKg !== undefined && (weightKg === null || weightKg < 0)) return {
+          ok: false,
+          error: "Invalid set.weightKg"
+        };
+        if (durationSec !== undefined && (durationSec === null || durationSec < 1)) return {
+          ok: false,
+          error: "Invalid set.durationSec"
+        };
+        if (reps === undefined && durationSec === undefined) return { ok: false, error: "Set needs reps or durationSec" };
+
+        sets.push({
+          ...(reps !== undefined ? { reps } : {}),
+          ...(weightKg !== undefined ? { weightKg } : {}),
+          ...(durationSec !== undefined ? { durationSec } : {}),
+        });
+      }
+
+      exercises.push({ name: ex.name.trim(), sets });
     }
-
-    exercises.push({ name: ex.name.trim(), sets });
+  } else if (Array.isArray(exercisesRaw) && exercisesRaw.length > 0) {
+    return { ok: false, error: "Exercises are not supported for this plan" };
   }
 
 
@@ -164,6 +173,8 @@ function validatePlan(
     status,
     statusUpdatedAt,
     source,
+    ...(existing?.sport ? { sport: existing.sport } : {}),
+    ...(existing?.routineId ? { routineId: existing.routineId } : {}),
     ...(completedWorkoutId ? { completedWorkoutId: completedWorkoutId } : {}),
   };
 

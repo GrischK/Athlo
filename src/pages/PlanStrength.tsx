@@ -22,6 +22,7 @@ export default function PlanStrength() {
 
   // Edition
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingSport, setEditingSport] = useState<string | null>(null);
 
   // Form
   const [plannedForLocal, setPlannedForLocal] = useState(nowLocalInputValue());
@@ -37,6 +38,7 @@ export default function PlanStrength() {
 
   const [activeTab, setActiveTab] = useState<PlanTab>("planned");
   const didMaterializeRef = useRef(false);
+  const isStrengthForm = !editingSport || editingSport === "strength";
 
   const load = async () => {
     setLoading(true);
@@ -92,6 +94,7 @@ export default function PlanStrength() {
 
   const canSubmit = useMemo(() => {
     if (durationMin !== "" && Number(durationMin) <= 0) return false;
+    if (!isStrengthForm) return true;
     if (!exercises.length) return false;
 
     for (const ex of exercises) {
@@ -110,10 +113,11 @@ export default function PlanStrength() {
     }
 
     return true;
-  }, [durationMin, exercises]);
+  }, [durationMin, exercises, isStrengthForm]);
 
   const resetForm = () => {
     setEditingId(null);
+    setEditingSport(null);
     setPlannedForLocal(nowLocalInputValue());
     setDurationMin("");
     setNotes("");
@@ -122,6 +126,7 @@ export default function PlanStrength() {
 
   const loadPlanIntoForm = (p: StrengthPlan) => {
     setEditingId(p.id);
+    setEditingSport(p.sport ?? null);
     setPlannedForLocal(isoToLocalInputValue(p.plannedFor));
     setDurationMin(p.durationMin ?? "");
     setNotes(p.notes ?? "");
@@ -136,19 +141,21 @@ export default function PlanStrength() {
   };
 
   const buildPlanFromForm = (id: string): StrengthPlanUpsert => {
-    const expandedExercises = exercises.map((ex) => {
-      const sets = ex.groups.flatMap((g) => {
-        const n = Math.max(1, Math.floor(Number(g.count) || 1));
-        const set = {
-          ...(g.reps === "" ? {} : { reps: Number(g.reps) }),
-          ...(g.weightKg === "" ? {} : { weightKg: Number(g.weightKg) }),
-          ...(g.durationSec === "" ? {} : { durationSec: Number(g.durationSec) }),
-        };
-        return Array.from({ length: n }, () => set);
-      });
+    const expandedExercises = isStrengthForm
+      ? exercises.map((ex) => {
+        const sets = ex.groups.flatMap((g) => {
+          const n = Math.max(1, Math.floor(Number(g.count) || 1));
+          const set = {
+            ...(g.reps === "" ? {} : { reps: Number(g.reps) }),
+            ...(g.weightKg === "" ? {} : { weightKg: Number(g.weightKg) }),
+            ...(g.durationSec === "" ? {} : { durationSec: Number(g.durationSec) }),
+          };
+          return Array.from({ length: n }, () => set);
+        });
 
-      return { name: ex.name.trim(), sets };
-    });
+        return { name: ex.name.trim(), sets };
+      })
+      : [];
 
     return {
       id,
@@ -221,6 +228,7 @@ export default function PlanStrength() {
     if (!suggestion) return;
 
     setEditingId(null);
+    setEditingSport("strength");
     setDurationMin(suggestion.plan.durationMin ?? "");
     setNotes(suggestion.plan.notes ?? "");
 
@@ -273,7 +281,7 @@ export default function PlanStrength() {
             <button
               type="button"
               onClick={() => void suggest()}
-              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 hover:cursor-pointer"
             >
               {suggestLoading ? "..." : suggestion ? "Régénérer" : "Proposer une séance"}
             </button>
@@ -317,7 +325,7 @@ export default function PlanStrength() {
                   type="button"
                   onClick={() => void suggest(aiInput)}
                   disabled={!aiInput.trim() || suggestLoading}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 hover:cursor-pointer"
                 >
                   Envoyer
                 </button>
@@ -325,7 +333,7 @@ export default function PlanStrength() {
                 <button
                   type="button"
                   onClick={applySuggestion}
-                  className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800"
+                  className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 hover:cursor-pointer"
                 >
                   Utiliser cette proposition
                 </button>
@@ -384,127 +392,134 @@ export default function PlanStrength() {
             />
           </div>
 
-          <div className="mt-6">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-medium text-slate-900">Exercices</div>
+          {isStrengthForm ? (
+            <div className="mt-6">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm font-medium text-slate-900">Exercices</div>
 
-              <button
-                type="button"
-                onClick={addExercise}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Ajouter un exercice
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={addExercise}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:cursor-pointer"
+                >
+                  Ajouter un exercice
+                </button>
+              </div>
 
-            <div className="space-y-4">
-              {exercises.map((ex, exIdx) => (
-                <div key={ex.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Exercice {exIdx + 1}
-                      </label>
-                      <input
-                        placeholder="Ex: pompes, dead bug..."
-                        value={ex.name}
-                        onChange={(e) => updateExerciseName(ex.id, e.target.value)}
-                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                      />
+              <div className="space-y-4">
+                {exercises.map((ex, exIdx) => (
+                  <div key={ex.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Exercice {exIdx + 1}
+                        </label>
+                        <input
+                          placeholder="Ex: pompes, dead bug..."
+                          value={ex.name}
+                          onChange={(e) => updateExerciseName(ex.id, e.target.value)}
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeExercise(ex.id)}
+                        disabled={exercises.length === 1}
+                        className="mt-7 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed hover:cursor-pointer"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+
+                    <div className="mt-4 text-sm font-medium text-slate-900 mb-2">Groupes</div>
+
+                    <div className="space-y-3">
+                      {ex.groups.map((g, idx) => (
+                        <div key={idx} className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+                          <input
+                            type="number"
+                            min={1}
+                            value={g.count}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              updateGroup(ex.id, idx, { count: value === "" ? "" : Number(value) });
+                            }}
+                            className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            placeholder="Séries"
+                          />
+
+                          <input
+                            type="number"
+                            min={1}
+                            value={g.reps}
+                            onChange={(e) => {
+                              const v = e.target.value === "" ? "" : Number(e.target.value);
+                              updateGroup(ex.id, idx, { reps: v });
+                            }}
+                            className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            placeholder="Reps"
+                          />
+
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.5}
+                            value={g.weightKg}
+                            onChange={(e) => {
+                              const v = e.target.value === "" ? "" : Number(e.target.value);
+                              updateGroup(ex.id, idx, { weightKg: v });
+                            }}
+                            className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            placeholder="Kg (opt.)"
+                          />
+
+                          <input
+                            type="number"
+                            min={1}
+                            value={g.durationSec}
+                            onChange={(e) => {
+                              const v = e.target.value === "" ? "" : Number(e.target.value);
+                              updateGroup(ex.id, idx, { durationSec: v });
+                            }}
+                            className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            placeholder="Sec (opt.)"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => removeGroup(ex.id, idx)}
+                            className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:cursor-pointer"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      ))}
                     </div>
 
                     <button
                       type="button"
-                      onClick={() => removeExercise(ex.id)}
-                      disabled={exercises.length === 1}
-                      className="mt-7 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      onClick={() => addGroup(ex.id)}
+                      className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 hover:cursor-pointer"
                     >
-                      Supprimer
+                      Ajouter un groupe
                     </button>
                   </div>
-
-                  <div className="mt-4 text-sm font-medium text-slate-900 mb-2">Groupes</div>
-
-                  <div className="space-y-3">
-                    {ex.groups.map((g, idx) => (
-                      <div key={idx} className="grid grid-cols-1 gap-3 sm:grid-cols-5">
-                        <input
-                          type="number"
-                          min={1}
-                          value={g.count}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            updateGroup(ex.id, idx, { count: value === "" ? "" : Number(value) });
-                          }}
-                          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="Séries"
-                        />
-
-                        <input
-                          type="number"
-                          min={1}
-                          value={g.reps}
-                          onChange={(e) => {
-                            const v = e.target.value === "" ? "" : Number(e.target.value);
-                            updateGroup(ex.id, idx, { reps: v });
-                          }}
-                          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="Reps"
-                        />
-
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.5}
-                          value={g.weightKg}
-                          onChange={(e) => {
-                            const v = e.target.value === "" ? "" : Number(e.target.value);
-                            updateGroup(ex.id, idx, { weightKg: v });
-                          }}
-                          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="Kg (opt.)"
-                        />
-
-                        <input
-                          type="number"
-                          min={1}
-                          value={g.durationSec}
-                          onChange={(e) => {
-                            const v = e.target.value === "" ? "" : Number(e.target.value);
-                            updateGroup(ex.id, idx, { durationSec: v });
-                          }}
-                          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          placeholder="Sec (opt.)"
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() => removeGroup(ex.id, idx)}
-                          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                        >
-                          Supprimer
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => addGroup(ex.id)}
-                    className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                  >
-                    Ajouter un groupe
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Ce plan vient d’une routine {editingSport ? displaySportName(editingSport) : ""}. Ici tu peux modifier la date,
+              la durée et les notes avant validation.
+            </div>
+          )}
 
           <div className="mt-6 flex items-center justify-end gap-3">
             <button
               onClick={() => void submit()}
               disabled={!canSubmit}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:cursor-pointer"
             >
               {editingId ? "Sauvegarder" : "Planifier"}
             </button>
@@ -519,7 +534,7 @@ export default function PlanStrength() {
                 type="button"
                 onClick={() => setActiveTab("planned")}
                 className={
-                  "flex-1 rounded-2xl px-4 py-3 text-sm font-medium " +
+                  "flex-1 rounded-2xl px-4 py-3 text-sm font-medium hover:cursor-pointer " +
                   (activeTab === "planned"
                     ? "bg-slate-900 text-white"
                     : "border border-slate-300 bg-white text-slate-700")
@@ -532,7 +547,7 @@ export default function PlanStrength() {
                 type="button"
                 onClick={() => setActiveTab("canceled_missed")}
                 className={
-                  "flex-1 rounded-2xl px-4 py-3 text-sm font-medium " +
+                  "flex-1 rounded-2xl px-4 py-3 text-sm font-medium hover:cursor-pointer " +
                   (activeTab === "canceled_missed"
                     ? "bg-slate-900 text-white"
                     : "border border-slate-300 bg-white text-slate-700")
@@ -546,8 +561,8 @@ export default function PlanStrength() {
           <div className="divide-y divide-slate-100">
             {visiblePlans.map((p) => (
               <div key={p.id} className="px-6 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+                <div className="flex flex-col sm:flex-row sm:gap-0 items-start justify-between gap-6">
+                  <div className="flex-1">
                     <div className="font-medium text-slate-900">{p.sport ? displaySportName(p.sport) : "Séance"}</div>
 
                     <div className="mt-1 text-sm text-slate-700">
@@ -568,7 +583,7 @@ export default function PlanStrength() {
                         <button
                           type="button"
                           onClick={() => loadPlanIntoForm(p)}
-                          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:cursor-pointer"
                         >
                           Modifier
                         </button>
@@ -576,7 +591,7 @@ export default function PlanStrength() {
                         <button
                           type="button"
                           onClick={() => void completePlan(p.id)}
-                          className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                          className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 hover:cursor-pointer"
                         >
                           J’ai fait
                         </button>
@@ -586,7 +601,7 @@ export default function PlanStrength() {
                     <button
                       type="button"
                       onClick={() => void deletePlan(p.id)}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:cursor-pointer"
                     >
                       Supprimer
                     </button>

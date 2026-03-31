@@ -2,16 +2,22 @@ import type {VercelRequest, VercelResponse} from "@vercel/node";
 import {kv} from "@vercel/kv";
 import {json} from "../server/_utils.js";
 import {requireAuth} from "../server/_auth.js";
-import type {StrengthExercise, StrengthPlan, WorkoutBase} from "../src/types/workout.js";
+import type {Sport, StrengthExercise, StrengthPlan, WorkoutBase} from "../src/types/workout.js";
 import {isRecord, nowIso, parseBody, parseMaybeJson} from "../server/helpers/plan.helper.js";
 
-type StrengthWorkoutBase = WorkoutBase & {
-  sport: "strength";
+type PlannedWorkoutBase = WorkoutBase & {
+  sport: Sport;
 };
 
-type StrengthWorkout = StrengthWorkoutBase & {
+type StrengthWorkout = PlannedWorkoutBase & {
   details: { exercises: StrengthExercise[] };
 };
+
+type EnduranceWorkout = PlannedWorkoutBase & {
+  details: Record<string, never>;
+};
+
+type PlannedWorkout = StrengthWorkout | EnduranceWorkout;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const authed = await requireAuth(req, res);
@@ -74,14 +80,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const workoutId = plan.completedWorkoutId ?? plan.id;
 
-    const workout: StrengthWorkout = {
-      id: workoutId,
-      startedAt: plan.plannedFor,
-      sport: "strength",
-      durationMin: plan.durationMin,
-      ...(plan.notes ? {notes: plan.notes} : {}),
-      details: {exercises: plan.exercises},
-    };
+    const planSport: Sport = plan.sport === "swim" || plan.sport === "laser_run" || plan.sport === "run"
+      ? plan.sport
+      : "strength";
+
+    const workout: PlannedWorkout = planSport === "strength"
+      ? {
+        id: workoutId,
+        startedAt: plan.plannedFor,
+        sport: "strength",
+        durationMin: plan.durationMin,
+        ...(plan.notes ? {notes: plan.notes} : {}),
+        details: {exercises: plan.exercises},
+      }
+      : {
+        id: workoutId,
+        startedAt: plan.plannedFor,
+        sport: planSport,
+        durationMin: plan.durationMin,
+        ...(plan.notes ? {notes: plan.notes} : {}),
+        details: {},
+      };
 
     await kv.zadd(workoutsKey, {score: Date.parse(workout.startedAt), member: JSON.stringify(workout)});
 

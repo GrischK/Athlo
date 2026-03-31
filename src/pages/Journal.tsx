@@ -2,6 +2,7 @@ import {useEffect, useMemo, useState} from "react";
 import {api} from "../lib/api";
 import type {ExerciseDraft, Workout} from "../types/workout";
 import {localInputToIso, nowLocalInputValue, type SetGroup, uuid} from "../utils/workoutForm";
+import {displaySportName} from "@/utils/planStrength.helper.ts";
 
 type Sport = Workout["sport"];
 
@@ -466,7 +467,7 @@ export default function Journal() {
             {workouts.map((w) => (
               <div key={w.id} className="px-6 py-4">
                 <div className="flex items-center justify-between">
-                  <div className="font-medium text-slate-900">{w.sport}</div>
+                  <div className="font-medium text-slate-900">{displaySportName(w.sport) ?? w.sport}</div>
                   <div className="text-sm text-slate-500">{new Date(w.startedAt).toLocaleString()}</div>
                 </div>
                 <div className="mt-1 text-sm text-slate-700">
