@@ -5,6 +5,11 @@ import {localInputToIso, nowLocalInputValue, type SetGroup, uuid} from "../utils
 import {displaySportName} from "@/utils/planStrength.helper.ts";
 
 type Sport = Workout["sport"];
+type RunMetricSource = "duration" | "pace" | null;
+
+function roundTo2(value: number) {
+  return Math.round(value * 100) / 100;
+}
 
 
 const newExerciseDraft = (): ExerciseDraft => ({
@@ -26,7 +31,10 @@ export default function Journal() {
 
   // Run / Laser-run
   const [distanceKm, setDistanceKm] = useState<number>();
-  const [paceSecPerKm, setPaceSecPerKm] = useState<number | "">("");
+  const [paceMinPerKm, setPaceMinPerKm] = useState<number | "">("");
+  const [runMetricSource, setRunMetricSource] = useState<RunMetricSource>(null);
+  const [isDurationManual, setIsDurationManual] = useState(false);
+  const [isPaceManual, setIsPaceManual] = useState(false);
 
   // Swim
   const [distanceM, setDistanceM] = useState<number>();
@@ -50,6 +58,42 @@ export default function Journal() {
   }, []);
 
   const startedAtIso = useMemo(() => localInputToIso(startedAtLocal), [startedAtLocal]);
+  const resolvedRunDurationMin = useMemo(() => {
+    if ((sport !== "run" && sport !== "laser_run") || !distanceKm || distanceKm <= 0) return undefined;
+    if (durationMin !== undefined && durationMin > 0) return durationMin;
+    if (paceMinPerKm !== "" && Number(paceMinPerKm) > 0) return roundTo2(Number(paceMinPerKm) * distanceKm);
+    return undefined;
+  }, [distanceKm, durationMin, paceMinPerKm, sport]);
+
+  const resolvedRunPaceMinPerKm = useMemo(() => {
+    if ((sport !== "run" && sport !== "laser_run") || !distanceKm || distanceKm <= 0) return undefined;
+    if (paceMinPerKm !== "" && Number(paceMinPerKm) > 0) return Number(paceMinPerKm);
+    if (durationMin !== undefined && durationMin > 0) return roundTo2(durationMin / distanceKm);
+    return undefined;
+  }, [distanceKm, durationMin, paceMinPerKm, sport]);
+
+  useEffect(() => {
+    if (sport !== "run" && sport !== "laser_run") return;
+    if (!distanceKm || distanceKm <= 0) return;
+    if (isDurationManual && isPaceManual && durationMin !== undefined && durationMin > 0 && paceMinPerKm !== "" && Number(paceMinPerKm) > 0) {
+      return;
+    }
+
+    if (runMetricSource === "pace" && paceMinPerKm !== "" && Number(paceMinPerKm) > 0) {
+      if (durationMin === undefined || !isDurationManual) {
+        setDurationMin(roundTo2(Number(paceMinPerKm) * distanceKm));
+        setIsDurationManual(false);
+      }
+      return;
+    }
+
+    if (runMetricSource === "duration" && durationMin !== undefined && durationMin > 0) {
+      if (paceMinPerKm === "" || !isPaceManual) {
+        setPaceMinPerKm(roundTo2(durationMin / distanceKm));
+        setIsPaceManual(false);
+      }
+    }
+  }, [distanceKm, durationMin, isDurationManual, isPaceManual, paceMinPerKm, runMetricSource, sport]);
 
   const addExercise = () => setExercises((prev) => [...prev, newExerciseDraft()]);
 
@@ -82,7 +126,7 @@ export default function Journal() {
     );
 
   const canSubmit = useMemo(() => {
-    if (sport !== "strength") {
+    if (sport !== "strength" && sport !== "run" && sport !== "laser_run") {
       if (!durationMin || durationMin <= 0) return false;
     } else {
       if (durationMin !== undefined && durationMin <= 0) return false;
@@ -90,7 +134,9 @@ export default function Journal() {
 
     if (sport === "run" || sport === "laser_run") {
       if (!distanceKm || distanceKm <= 0) return false;
-      if (paceSecPerKm !== "" && Number(paceSecPerKm) <= 0) return false;
+      if (paceMinPerKm !== "" && Number(paceMinPerKm) <= 0) return false;
+      if (!resolvedRunDurationMin || resolvedRunDurationMin <= 0) return false;
+      if (!resolvedRunPaceMinPerKm || resolvedRunPaceMinPerKm <= 0) return false;
       return true;
     }
 
@@ -121,7 +167,7 @@ export default function Journal() {
     }
 
     return false;
-  }, [durationMin, sport, distanceKm, paceSecPerKm, distanceM, poolLengthM, exercises]);
+  }, [durationMin, sport, distanceKm, paceMinPerKm, distanceM, poolLengthM, exercises, resolvedRunDurationMin, resolvedRunPaceMinPerKm]);
 
   const resetStrengthDraft = () => setExercises([newExerciseDraft()]);
 
@@ -133,7 +179,10 @@ export default function Journal() {
     setNotes("");
 
     setDistanceKm(undefined);
-    setPaceSecPerKm("");
+    setPaceMinPerKm("");
+    setRunMetricSource(null);
+    setIsDurationManual(false);
+    setIsPaceManual(false);
 
     setDistanceM(undefined);
     setPoolLengthM("");
@@ -144,11 +193,14 @@ export default function Journal() {
   const submit = async () => {
     if (!canSubmit) return;
 
-    const base: Omit<Workout, "details"> = {
+    const computedDurationMin =
+      sport === "run" || sport === "laser_run" ? resolvedRunDurationMin : durationMin;
+
+    const base = {
       id: uuid(),
       startedAt: startedAtIso,
       sport,
-      durationMin: Number(durationMin),
+      ...(computedDurationMin !== undefined ? {durationMin: Number(computedDurationMin)} : {}),
       ...(rpe === "" ? {} : {rpe: Number(rpe)}),
       ...(notes.trim() ? {notes: notes.trim()} : {}),
     };
@@ -161,7 +213,7 @@ export default function Journal() {
         sport,
         details: {
           distanceKm: Number(distanceKm),
-          ...(paceSecPerKm === "" ? {} : {paceSecPerKm: Number(paceSecPerKm)}),
+          ...(resolvedRunPaceMinPerKm === undefined ? {} : {paceSecPerKm: Math.round(resolvedRunPaceMinPerKm * 60)}),
         },
       };
     } else if (sport === "swim") {
@@ -243,10 +295,19 @@ export default function Journal() {
               <label className="block text-sm font-medium text-slate-700 mb-2">Durée (min)</label>
               <input
                 type="number"
-                min={1}
+                min={0.01}
+                step={0.01}
                 value={durationMin}
-                onChange={(e) => setDurationMin(e.target.value === "" ? undefined : Number(e.target.value))}
+                onChange={(e) => {
+                  const value = e.target.value === "" ? undefined : Number(e.target.value);
+                  setDurationMin(value);
+                  setIsDurationManual(value !== undefined);
+                  if (sport === "run" || sport === "laser_run") {
+                    setRunMetricSource(value === undefined ? (paceMinPerKm !== "" ? "pace" : null) : "duration");
+                  }
+                }}
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                placeholder={sport === "run" || sport === "laser_run" ? "Optionnel si allure renseignée" : undefined}
               />
             </div>
 
@@ -283,19 +344,25 @@ export default function Journal() {
                   min={0.1}
                   step={0.1}
                   value={distanceKm}
-                  onChange={(e) => setDistanceKm(Number(e.target.value))}
+                  onChange={(e) => setDistanceKm(e.target.value === "" ? undefined : Number(e.target.value))}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Allure (sec/km)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Allure (min/km)</label>
                 <input
                   type="number"
-                  min={1}
-                  value={paceSecPerKm}
-                  onChange={(e) => setPaceSecPerKm(e.target.value === "" ? "" : Number(e.target.value))}
+                  min={0.01}
+                  step={0.01}
+                  value={paceMinPerKm}
+                  onChange={(e) => {
+                    const value = e.target.value === "" ? "" : Number(e.target.value);
+                    setPaceMinPerKm(value);
+                    setIsPaceManual(value !== "");
+                    setRunMetricSource(value === "" ? (durationMin !== undefined ? "duration" : null) : "pace");
+                  }}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  placeholder="Optionnel"
+                  placeholder="Optionnel si durée renseignée"
                 />
               </div>
             </div>
