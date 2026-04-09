@@ -53,9 +53,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const planMember = JSON.stringify(plan);
 
-    // delete = suppression réelle, sauf routine => marqué comme missed
+    // delete = sur une routine encore planned, on la marque missed ; sinon suppression réelle
     if (action === "delete") {
-      if (plan.source === "routine") {
+      if (plan.source === "routine" && plan.status === "planned") {
         const updated: StrengthPlan = {
           ...plan,
           status: "missed",

@@ -36,15 +36,19 @@ export function validateRoutine(input: RoutineRuleInput, existing?: RoutineRule)
   }
 
   const sportRaw = input.sport;
-  const sport = sportRaw === "laser_run" || sportRaw === "swim" ? sportRaw : null;
+  const sport =
+    sportRaw === undefined
+      ? (existing?.sport ?? null)
+      : (sportRaw === "laser_run" || sportRaw === "swim" ? sportRaw : null);
   if (!sport) return {ok: false, error: "Invalid sport"};
 
   const weekdayRaw = input.weekday;
-  if (!isWeekday1to7(weekdayRaw)) return {ok: false, error: "Invalid weekday"};
-  const weekday = weekdayRaw;
+  const weekday = weekdayRaw === undefined ? existing?.weekday : weekdayRaw;
+  if (!isWeekday1to7(weekday)) return {ok: false, error: "Invalid weekday"};
 
   const timeLocalRaw = input.timeLocal;
-  if (!isTimeLocal(timeLocalRaw)) return {ok: false, error: "Invalid timeLocal"};
+  const timeLocal = timeLocalRaw === undefined ? existing?.timeLocal : timeLocalRaw;
+  if (!isTimeLocal(timeLocal)) return {ok: false, error: "Invalid timeLocal"};
 
   const durationMinRaw = input.durationMin;
   let durationMin: number | undefined;
@@ -64,6 +68,8 @@ export function validateRoutine(input: RoutineRuleInput, existing?: RoutineRule)
     if (typeof notesRaw !== "string") return {ok: false, error: "Invalid notes"};
     const t = notesRaw.trim();
     notes = t ? t : undefined;
+  } else {
+    notes = existing?.notes;
   }
 
   const isEnabledRaw = input.isEnabled;
@@ -83,7 +89,7 @@ export function validateRoutine(input: RoutineRuleInput, existing?: RoutineRule)
     id,
     sport,
     weekday,
-    timeLocal: timeLocalRaw,
+    timeLocal,
     ...(durationMin !== undefined ? {durationMin} : {}),
     ...(notes ? {notes} : {}),
     isEnabled,
