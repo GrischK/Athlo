@@ -3,12 +3,25 @@ import {api} from "../lib/api";
 import type {ExerciseDraft, Workout} from "../types/workout";
 import {localInputToIso, nowLocalInputValue, type SetGroup, uuid} from "../utils/workoutForm";
 import {displaySportName} from "@/utils/planStrength.helper.ts";
+import {compressSetsToGroups, isoToLocalInputValue} from "@/utils/planStrengthForm.ts";
 
 type Sport = Workout["sport"];
-type RunMetricSource = "duration" | "pace" | null;
 
-function roundTo2(value: number) {
-  return Math.round(value * 100) / 100;
+function paceDisplayToSeconds(value: number) {
+  const normalized = value.toFixed(2);
+  const [minutesPart, secondsPart = "00"] = normalized.split(".");
+  const minutes = Number(minutesPart);
+  const seconds = Number(secondsPart);
+
+  if (!Number.isFinite(minutes) || !Number.isFinite(seconds) || seconds >= 60) return null;
+  return (minutes * 60) + seconds;
+}
+
+function paceSecondsToDisplay(value: number) {
+  const totalSeconds = Math.round(value);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return Number(`${minutes}.${String(seconds).padStart(2, "0")}`);
 }
 
 
@@ -21,6 +34,7 @@ const newExerciseDraft = (): ExerciseDraft => ({
 export default function Journal() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
 
   // Form state
   const [sport, setSport] = useState<Sport>("run");
@@ -32,9 +46,6 @@ export default function Journal() {
   // Run / Laser-run
   const [distanceKm, setDistanceKm] = useState<number>();
   const [paceMinPerKm, setPaceMinPerKm] = useState<number | "">("");
-  const [runMetricSource, setRunMetricSource] = useState<RunMetricSource>(null);
-  const [isDurationManual, setIsDurationManual] = useState(false);
-  const [isPaceManual, setIsPaceManual] = useState(false);
 
   // Swim
   const [distanceM, setDistanceM] = useState<number>();
@@ -58,42 +69,6 @@ export default function Journal() {
   }, []);
 
   const startedAtIso = useMemo(() => localInputToIso(startedAtLocal), [startedAtLocal]);
-  const resolvedRunDurationMin = useMemo(() => {
-    if ((sport !== "run" && sport !== "laser_run") || !distanceKm || distanceKm <= 0) return undefined;
-    if (durationMin !== undefined && durationMin > 0) return durationMin;
-    if (paceMinPerKm !== "" && Number(paceMinPerKm) > 0) return roundTo2(Number(paceMinPerKm) * distanceKm);
-    return undefined;
-  }, [distanceKm, durationMin, paceMinPerKm, sport]);
-
-  const resolvedRunPaceMinPerKm = useMemo(() => {
-    if ((sport !== "run" && sport !== "laser_run") || !distanceKm || distanceKm <= 0) return undefined;
-    if (paceMinPerKm !== "" && Number(paceMinPerKm) > 0) return Number(paceMinPerKm);
-    if (durationMin !== undefined && durationMin > 0) return roundTo2(durationMin / distanceKm);
-    return undefined;
-  }, [distanceKm, durationMin, paceMinPerKm, sport]);
-
-  useEffect(() => {
-    if (sport !== "run" && sport !== "laser_run") return;
-    if (!distanceKm || distanceKm <= 0) return;
-    if (isDurationManual && isPaceManual && durationMin !== undefined && durationMin > 0 && paceMinPerKm !== "" && Number(paceMinPerKm) > 0) {
-      return;
-    }
-
-    if (runMetricSource === "pace" && paceMinPerKm !== "" && Number(paceMinPerKm) > 0) {
-      if (durationMin === undefined || !isDurationManual) {
-        setDurationMin(roundTo2(Number(paceMinPerKm) * distanceKm));
-        setIsDurationManual(false);
-      }
-      return;
-    }
-
-    if (runMetricSource === "duration" && durationMin !== undefined && durationMin > 0) {
-      if (paceMinPerKm === "" || !isPaceManual) {
-        setPaceMinPerKm(roundTo2(durationMin / distanceKm));
-        setIsPaceManual(false);
-      }
-    }
-  }, [distanceKm, durationMin, isDurationManual, isPaceManual, paceMinPerKm, runMetricSource, sport]);
 
   const addExercise = () => setExercises((prev) => [...prev, newExerciseDraft()]);
 
@@ -134,9 +109,11 @@ export default function Journal() {
 
     if (sport === "run" || sport === "laser_run") {
       if (!distanceKm || distanceKm <= 0) return false;
-      if (paceMinPerKm !== "" && Number(paceMinPerKm) <= 0) return false;
-      if (!resolvedRunDurationMin || resolvedRunDurationMin <= 0) return false;
-      if (!resolvedRunPaceMinPerKm || resolvedRunPaceMinPerKm <= 0) return false;
+      if (paceMinPerKm !== "") {
+        const paceSec = paceDisplayToSeconds(Number(paceMinPerKm));
+        if (paceSec === null || paceSec <= 0) return false;
+      }
+      if ((durationMin === undefined || durationMin <= 0) && paceMinPerKm === "") return false;
       return true;
     }
 
@@ -167,11 +144,50 @@ export default function Journal() {
     }
 
     return false;
-  }, [durationMin, sport, distanceKm, paceMinPerKm, distanceM, poolLengthM, exercises, resolvedRunDurationMin, resolvedRunPaceMinPerKm]);
+  }, [durationMin, sport, distanceKm, paceMinPerKm, distanceM, poolLengthM, exercises]);
 
   const resetStrengthDraft = () => setExercises([newExerciseDraft()]);
 
+  const loadWorkoutIntoForm = (workout: Workout) => {
+    setEditingWorkoutId(workout.id);
+    setSport(workout.sport);
+    setStartedAtLocal(isoToLocalInputValue(workout.startedAt));
+    setDurationMin(workout.durationMin);
+    setRpe(workout.rpe ?? "");
+    setNotes(workout.notes ?? "");
+
+    setDistanceKm(undefined);
+    setPaceMinPerKm("");
+
+    setDistanceM(undefined);
+    setPoolLengthM("");
+    resetStrengthDraft();
+
+    if (workout.sport === "run" || workout.sport === "laser_run") {
+      setDistanceKm(workout.details.distanceKm);
+      setPaceMinPerKm(
+        workout.details.paceSecPerKm === undefined ? "" : paceSecondsToDisplay(workout.details.paceSecPerKm)
+      );
+      return;
+    }
+
+    if (workout.sport === "swim") {
+      setDistanceM(workout.details.distanceM);
+      setPoolLengthM(workout.details.poolLengthM ?? "");
+      return;
+    }
+
+    setExercises(
+      workout.details.exercises.map((exercise) => ({
+        id: uuid(),
+        name: exercise.name,
+        groups: compressSetsToGroups(exercise.sets),
+      }))
+    );
+  };
+
   const resetForm = () => {
+    setEditingWorkoutId(null);
     setSport("run");
     setStartedAtLocal(nowLocalInputValue());
     setDurationMin(undefined);
@@ -180,9 +196,6 @@ export default function Journal() {
 
     setDistanceKm(undefined);
     setPaceMinPerKm("");
-    setRunMetricSource(null);
-    setIsDurationManual(false);
-    setIsPaceManual(false);
 
     setDistanceM(undefined);
     setPoolLengthM("");
@@ -193,14 +206,13 @@ export default function Journal() {
   const submit = async () => {
     if (!canSubmit) return;
 
-    const computedDurationMin =
-      sport === "run" || sport === "laser_run" ? resolvedRunDurationMin : durationMin;
+    const workoutId = editingWorkoutId ?? uuid();
 
     const base = {
-      id: uuid(),
+      id: workoutId,
       startedAt: startedAtIso,
       sport,
-      ...(computedDurationMin !== undefined ? {durationMin: Number(computedDurationMin)} : {}),
+      ...(durationMin !== undefined ? {durationMin: Number(durationMin)} : {}),
       ...(rpe === "" ? {} : {rpe: Number(rpe)}),
       ...(notes.trim() ? {notes: notes.trim()} : {}),
     };
@@ -213,7 +225,7 @@ export default function Journal() {
         sport,
         details: {
           distanceKm: Number(distanceKm),
-          ...(resolvedRunPaceMinPerKm === undefined ? {} : {paceSecPerKm: Math.round(resolvedRunPaceMinPerKm * 60)}),
+          ...(paceMinPerKm === "" ? {} : {paceSecPerKm: paceDisplayToSeconds(Number(paceMinPerKm))}),
         },
       };
     } else if (sport === "swim") {
@@ -249,7 +261,11 @@ export default function Journal() {
       };
     }
 
-    await api.workoutsCreate(workout);
+    if (editingWorkoutId) {
+      await api.workoutsUpdate(workout);
+    } else {
+      await api.workoutsCreate(workout);
+    }
 
     resetForm();
     await load();
@@ -264,7 +280,9 @@ export default function Journal() {
         </div>
 
         <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 text-sm font-medium text-slate-900">Nouvelle séance</div>
+          <div className="mb-4 text-sm font-medium text-slate-900">
+            {editingWorkoutId ? "Modifier la séance" : "Nouvelle séance"}
+          </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -301,10 +319,6 @@ export default function Journal() {
                 onChange={(e) => {
                   const value = e.target.value === "" ? undefined : Number(e.target.value);
                   setDurationMin(value);
-                  setIsDurationManual(value !== undefined);
-                  if (sport === "run" || sport === "laser_run") {
-                    setRunMetricSource(value === undefined ? (paceMinPerKm !== "" ? "pace" : null) : "duration");
-                  }
                 }}
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                 placeholder={sport === "run" || sport === "laser_run" ? "Optionnel si allure renseignée" : undefined}
@@ -358,8 +372,6 @@ export default function Journal() {
                   onChange={(e) => {
                     const value = e.target.value === "" ? "" : Number(e.target.value);
                     setPaceMinPerKm(value);
-                    setIsPaceManual(value !== "");
-                    setRunMetricSource(value === "" ? (durationMin !== undefined ? "duration" : null) : "pace");
                   }}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                   placeholder="Optionnel si durée renseignée"
@@ -514,12 +526,21 @@ export default function Journal() {
           )}
 
           <div className="mt-6 flex items-center justify-end gap-3">
+            {editingWorkoutId ? (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+            ) : null}
             <button
               onClick={() => void submit()}
               disabled={!canSubmit}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Enregistrer
+              {editingWorkoutId ? "Enregistrer les modifications" : "Enregistrer"}
             </button>
           </div>
         </div>
@@ -535,10 +556,22 @@ export default function Journal() {
               <div key={w.id} className="px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="font-medium text-slate-900">{displaySportName(w.sport) ?? w.sport}</div>
-                  <div className="text-sm text-slate-500">{new Date(w.startedAt).toLocaleString()}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm text-slate-500">{new Date(w.startedAt).toLocaleString()}</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        loadWorkoutIntoForm(w);
+                        window.scrollTo({top: 0, behavior: "smooth"});
+                      }}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Modifier
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-1 text-sm text-slate-700">
-                  {w.durationMin} min
+                  {w.durationMin ? `${w.durationMin} min` : "Durée libre"}
                   {"distanceKm" in w.details ? ` · ${w.details.distanceKm} km` : null}
                   {"distanceM" in w.details ? ` · ${w.details.distanceM} m` : null}
                 </div>

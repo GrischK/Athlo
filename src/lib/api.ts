@@ -65,6 +65,12 @@ export const api = {
       body: JSON.stringify(workout),
     }),
 
+  workoutsUpdate: (workout: Workout) =>
+    request<{ ok: true; workout: Workout }>(`/api/workouts`, {
+      method: "PUT",
+      body: JSON.stringify(workout),
+    }),
+
   plansList: async (limit = 30): Promise<StrengthPlan[]> => {
     const r = await request<{ plans: StrengthPlan[] }>(`/api/plans?limit=${limit}`, {method: "GET"});
     return r.plans;

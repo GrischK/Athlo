@@ -9,7 +9,7 @@ export type WorkoutBase = {
   id: string;
   startedAt: string;
   sport: Sport;
-  durationMin: number;
+  durationMin?: number;
   rpe?: number;
   notes?: string;
 };
@@ -46,14 +46,20 @@ function validateWorkout(body: any): ValidateResult {
   const id = body.id;
   const startedAt = body.startedAt;
   const sport = body.sport as Sport;
-  const durationMin = asNumber(body.durationMin);
+  const durationMin = body.durationMin === undefined ? undefined : asNumber(body.durationMin);
   const rpe = body.rpe === undefined ? undefined : asNumber(body.rpe);
   const notes = body.notes;
 
   if (typeof id !== "string" || id.length < 8) return {ok: false, error: "Invalid id"};
   if (!isIsoDateTime(startedAt)) return {ok: false, error: "Invalid startedAt"};
   if (!["swim", "run", "laser_run", "strength"].includes(sport)) return {ok: false, error: "Invalid sport"};
-  if (durationMin === null || durationMin <= 0) return {ok: false, error: "Invalid durationMin"};
+  if (sport === "swim") {
+    if (durationMin === undefined || durationMin === null || durationMin <= 0) return {ok: false, error: "Invalid durationMin"};
+  } else if (sport === "strength" && body.durationMin !== undefined && (durationMin === null || durationMin <= 0)) {
+    return {ok: false, error: "Invalid durationMin"};
+  } else if ((sport === "run" || sport === "laser_run") && durationMin !== undefined && (durationMin === null || durationMin <= 0)) {
+    return {ok: false, error: "Invalid durationMin"};
+  }
   if (rpe !== undefined && (rpe === null || rpe < 1 || rpe > 10)) return {ok: false, error: "Invalid rpe"};
   if (notes !== undefined && typeof notes !== "string") return {ok: false, error: "Invalid notes"};
 
@@ -62,7 +68,7 @@ function validateWorkout(body: any): ValidateResult {
     id,
     startedAt,
     sport,
-    durationMin,
+    ...(durationMin !== undefined && durationMin !== null ? {durationMin} : {}),
     ...(rpe !== undefined ? {rpe} : {}),
     ...(notes ? {notes} : {}),
   };
@@ -78,10 +84,33 @@ function validateWorkout(body: any): ValidateResult {
       return {ok: false, error: "Invalid details.paceSecPerKm"};
     }
 
+    const finalDurationMin =
+      durationMin !== undefined && durationMin !== null
+        ? durationMin
+        : paceSecPerKm !== undefined && paceSecPerKm !== null
+          ? Number(((paceSecPerKm * distanceKm) / 60).toFixed(2))
+          : undefined;
+
+    const finalPaceSecPerKm =
+      paceSecPerKm !== undefined && paceSecPerKm !== null
+        ? paceSecPerKm
+        : durationMin !== undefined && durationMin !== null
+          ? Math.round((durationMin * 60) / distanceKm)
+          : undefined;
+
+    if (finalDurationMin === undefined || finalDurationMin <= 0) {
+      return {ok: false, error: "Run needs durationMin or details.paceSecPerKm"};
+    }
+
+    if (finalPaceSecPerKm === undefined || finalPaceSecPerKm <= 0) {
+      return {ok: false, error: "Run needs durationMin or details.paceSecPerKm"};
+    }
+
     const workout: Workouts = {
       ...(base as any),
       sport,
-      details: {distanceKm, ...(paceSecPerKm !== undefined ? {paceSecPerKm} : {})},
+      durationMin: finalDurationMin,
+      details: {distanceKm, paceSecPerKm: finalPaceSecPerKm},
     };
     return {ok: true, workout, ts};
   }
@@ -203,6 +232,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await kv.zadd(key, {score: v.ts, member: JSON.stringify(v.workout)});
 
     return json(res, 201, {ok: true, workout: v.workout});
+  }
+
+  if (req.method === "PUT") {
+    let body: any;
+    try {
+      body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body ?? {});
+    } catch {
+      return json(res, 400, {error: "Invalid JSON"});
+    }
+
+    if (typeof body?.id !== "string" || body.id.length < 8) {
+      return json(res, 400, {error: "Invalid id"});
+    }
+
+    const values = await kv.zrange<unknown[]>(key, 0, 199, { rev: true });
+
+    for (const raw of values) {
+      const existing =
+        typeof raw === "string"
+          ? (() => {
+            try {
+              return JSON.parse(raw);
+            } catch {
+              return null;
+            }
+          })()
+          : raw;
+
+      if (!existing || typeof existing !== "object") continue;
+      if ((existing as {id?: string}).id !== body.id) continue;
+
+      const v = validateWorkout(body);
+      if (v.ok === false) {
+        return json(res, 400, {error: v.error});
+      }
+
+      await kv.zrem(key, JSON.stringify(existing));
+      await kv.zadd(key, {score: v.ts, member: JSON.stringify(v.workout)});
+
+      return json(res, 200, {ok: true, workout: v.workout});
+    }
+
+    return json(res, 404, {error: "Workout not found"});
   }
 
   return json(res, 405, {error: "Method not allowed"});
