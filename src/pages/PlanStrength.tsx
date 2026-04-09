@@ -13,7 +13,7 @@ const newExerciseDraft = (): ExerciseDraft => ({
   groups: [{ count: "", reps: "", weightKg: "", durationSec: "" }],
 });
 
-type PlanTab = "planned" | "canceled_missed";
+type PlanTab = "planned" | "inactive";
 
 export default function PlanStrength() {
   const [plans, setPlans] = useState<StrengthPlan[]>([]);
@@ -545,15 +545,15 @@ export default function PlanStrength() {
 
               <button
                 type="button"
-                onClick={() => setActiveTab("canceled_missed")}
+                onClick={() => setActiveTab("inactive")}
                 className={
                   "flex-1 rounded-2xl px-4 py-3 text-sm font-medium hover:cursor-pointer " +
-                  (activeTab === "canceled_missed"
+                  (activeTab === "inactive"
                     ? "bg-slate-900 text-white"
                     : "border border-slate-300 bg-white text-slate-700")
                 }
               >
-                Canceled / missed ({canceledOrMissedPlans.length})
+                Inactifs ({canceledOrMissedPlans.length})
               </button>
             </div>
           </div>
@@ -603,7 +603,7 @@ export default function PlanStrength() {
                       onClick={() => void deletePlan(p.id)}
                       className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:cursor-pointer"
                     >
-                      Supprimer
+                      {p.status === "planned" && p.source === "routine" ? "Manqué" : "Supprimer"}
                     </button>
                   </div>
                 </div>

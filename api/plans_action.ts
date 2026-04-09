@@ -53,8 +53,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const planMember = JSON.stringify(plan);
 
-    // delete = suppression réelle
+    // delete = suppression réelle, sauf routine => marqué comme missed
     if (action === "delete") {
+      if (plan.source === "routine") {
+        const updated: StrengthPlan = {
+          ...plan,
+          status: "missed",
+          statusUpdatedAt: nowIso(),
+        };
+
+        await kv.zrem(plansKey, planMember);
+        await kv.zadd(plansKey, {score: Date.parse(updated.plannedFor), member: JSON.stringify(updated)});
+        return json(res, 200, {ok: true, plan: updated});
+      }
+
       await kv.zrem(plansKey, planMember);
       return json(res, 200, {ok: true});
     }
