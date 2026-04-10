@@ -31,6 +31,10 @@ const newExerciseDraft = (): ExerciseDraft => ({
   groups: [{count: "", reps: "", weightKg: "", durationSec: ""}],
 });
 
+function sortWorkouts(items: Workout[]) {
+  return [...items].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+}
+
 export default function Journal() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
@@ -262,13 +266,14 @@ export default function Journal() {
     }
 
     if (editingWorkoutId) {
-      await api.workoutsUpdate(workout);
+      const res = await api.workoutsUpdate(workout);
+      setWorkouts((prev) => sortWorkouts(prev.map((item) => (item.id === res.workout.id ? res.workout : item))));
     } else {
-      await api.workoutsCreate(workout);
+      const res = await api.workoutsCreate(workout);
+      setWorkouts((prev) => sortWorkouts([res.workout, ...prev.filter((item) => item.id !== res.workout.id)]));
     }
 
     resetForm();
-    await load();
   };
 
   return (

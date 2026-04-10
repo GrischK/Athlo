@@ -11,14 +11,15 @@ export default function Home() {
   const load = async () => {
     setLoading(true);
     try {
-      const workoutRes = await api.workoutsList(30);
+      const [workoutRes, planRes] = await Promise.all([
+        api.workoutsList(30),
+        api.plansList(50),
+      ]);
 
       setLastWorkout(workoutRes[0]);
-      const planRes = await fetch("/api/plans");
-      const planData = await planRes.json();
       const today = new Date().toISOString().split("T")[0];
 
-      const plansForToday = (planData.plans ?? []).filter((plan: StrengthPlan) =>
+      const plansForToday = (planRes ?? []).filter((plan: StrengthPlan) =>
         plan.plannedFor.startsWith(today)
       );
 

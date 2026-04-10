@@ -84,8 +84,8 @@ export const api = {
     return r.plan;
   },
 
-  plansAction: async (id: string, action: "complete" | "cancel" | "delete"): Promise<{ workout?: Workout }> => {
-    return await request<{ ok: true; workout?: Workout }>(`/api/plans_action`, {
+  plansAction: async (id: string, action: "complete" | "cancel" | "delete"): Promise<{ workout?: Workout; plan?: StrengthPlan }> => {
+    return await request<{ ok: true; workout?: Workout; plan?: StrengthPlan }>(`/api/plans_action`, {
       method: "POST",
       body: JSON.stringify({id, action}),
     });

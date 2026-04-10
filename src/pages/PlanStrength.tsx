@@ -44,10 +44,6 @@ export default function PlanStrength() {
     setLoading(true);
     setErr("");
     try {
-      if (!didMaterializeRef.current) {
-        didMaterializeRef.current = true;
-        await api.routinesMaterializeWeek();
-      }
       const res = await api.plansList(50);
       setPlans(sortPlans(res));
     } catch (e: unknown) {
@@ -59,6 +55,22 @@ export default function PlanStrength() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  useEffect(() => {
+    if (didMaterializeRef.current) return;
+    didMaterializeRef.current = true;
+
+    void (async () => {
+      try {
+        const result = await api.routinesMaterializeWeek();
+        if (result.createdCount <= 0) return;
+        const refreshed = await api.plansList(50);
+        setPlans(sortPlans(refreshed));
+      } catch (e: unknown) {
+        setErr((prev) => prev || getErrorMessage(e, "Erreur lors de la génération des routines"));
+      }
+    })();
   }, []);
 
 
@@ -174,15 +186,16 @@ export default function PlanStrength() {
     try {
       if (editingId) {
         const plan = buildPlanFromForm(editingId);
-        await api.plansUpdate(plan);
+        const updated = await api.plansUpdate(plan);
+        setPlans((prev) => sortPlans(prev.map((item) => (item.id === updated.id ? updated : item))));
       }
       else {
         const plan = buildPlanFromForm(uuid());
-        await api.plansCreate(plan);
+        const created = await api.plansCreate(plan);
+        setPlans((prev) => sortPlans([created, ...prev.filter((item) => item.id !== created.id)]));
       }
 
       resetForm();
-      await load();
     } catch (e: unknown) {
       setErr(getErrorMessage(e, "Erreur lors de l'enregistrement du plan"));
     }
@@ -191,9 +204,11 @@ export default function PlanStrength() {
   const completePlan = async (id: string) => {
     setErr("");
     try {
-      await api.plansAction(id, "complete");
+      const res = await api.plansAction(id, "complete");
+      if (res.plan) {
+        setPlans((prev) => sortPlans(prev.map((item) => (item.id === res.plan!.id ? res.plan! : item))));
+      }
       if (editingId === id) resetForm();
-      await load();
     } catch (e: unknown) {
       setErr(getErrorMessage(e, "Erreur lors de la validation du plan"));
     }
@@ -202,9 +217,13 @@ export default function PlanStrength() {
   const deletePlan = async (id: string) => {
     setErr("");
     try {
-      await api.plansAction(id, "delete");
+      const res = await api.plansAction(id, "delete");
+      if (res.plan) {
+        setPlans((prev) => sortPlans(prev.map((item) => (item.id === res.plan!.id ? res.plan! : item))));
+      } else {
+        setPlans((prev) => prev.filter((item) => item.id !== id));
+      }
       if (editingId === id) resetForm();
-      await load();
     } catch (e: unknown) {
       setErr(getErrorMessage(e, "Erreur lors de la suppression du plan"));
     }

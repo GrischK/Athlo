@@ -20,6 +20,10 @@ function defaultTimeForSport(sport: RoutineSport): string {
   return sport === "laser_run" ? "19:00" : "12:00";
 }
 
+function sortRoutines(items: RoutineRule[]) {
+  return [...items].sort((a, b) => (a.weekday - b.weekday) || a.timeLocal.localeCompare(b.timeLocal));
+}
+
 export default function Routines() {
   const [routines, setRoutines] = useState<RoutineRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,9 +62,7 @@ export default function Routines() {
     setErr("");
     try {
       const list = await api.routinesList();
-      // tri stable: weekday puis time
-      const sorted = [...list].sort((a, b) => (a.weekday - b.weekday) || a.timeLocal.localeCompare(b.timeLocal));
-      setRoutines(sorted);
+      setRoutines(sortRoutines(list));
     } catch (e: unknown) {
       setErr(getErrorMessage(e, "Erreur lors du chargement des routines"));
     } finally {
@@ -100,13 +102,14 @@ export default function Routines() {
 
     try {
       if (editingId) {
-        await api.routinesUpdate(upsert);
+        const updated = await api.routinesUpdate(upsert);
+        setRoutines((prev) => sortRoutines(prev.map((item) => (item.id === updated.id ? updated : item))));
       }
       else {
-        await api.routinesCreate(upsert);
+        const created = await api.routinesCreate(upsert);
+        setRoutines((prev) => sortRoutines([created, ...prev.filter((item) => item.id !== created.id)]));
       }
       resetForm();
-      await load();
     } catch (e: unknown) {
       setErr(getErrorMessage(e, "Erreur lors de l'enregistrement de la routine"));
     }
@@ -115,8 +118,11 @@ export default function Routines() {
   const toggleEnabled = async (r: RoutineRule) => {
     setErr("");
     try {
-      await api.routinesUpdate({ id: r.id, isEnabled: !r.isEnabled });
-      await load();
+      const updated = await api.routinesUpdate({ id: r.id, isEnabled: !r.isEnabled });
+      setRoutines((prev) => sortRoutines(prev.map((item) => (item.id === updated.id ? updated : item))));
+      if (editingId === updated.id) {
+        setIsEnabled(updated.isEnabled);
+      }
     } catch (e: unknown) {
       setErr(getErrorMessage(e, "Erreur lors de la mise à jour de la routine"));
     }
@@ -126,10 +132,7 @@ export default function Routines() {
     setErr("");
     try {
       const r = await api.routinesMaterializeWeek();
-      // feedback léger
-      await load();
       setErr(`Semaine générée. ${r.createdCount} plan(s) ajouté(s).`);
-      // optionnel: effacer le message après quelques secondes
     } catch (e: unknown) {
       setErr(getErrorMessage(e, "Erreur lors de la génération de la semaine"));
     }
